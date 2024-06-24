@@ -1,9 +1,9 @@
-import sys
-from PyQt5.QtWidgets import QMainWindow, QAction, QApplication, QLabel, QVBoxLayout, QWidget, QGroupBox
+from PyQt5.QtWidgets import QMainWindow, QAction, QLabel, QVBoxLayout, QWidget, QGroupBox, QApplication
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QDateTime
+from PyQt5.QtCore import QTimer, QDateTime
+from Foundation import NSWorkspace
+from AppKit import NSWorkspaceDidActivateApplicationNotification, NSWorkspaceDidDeactivateApplicationNotification
 from utils.activity_tracker import ActivityTracker
-from PyObjCTools import AppHelper
 
 class Menu(QMainWindow):
     def __init__(self):
@@ -14,9 +14,15 @@ class Menu(QMainWindow):
         self.inactive_periods = []
         self.current_activity_start = None
         self.current_inactivity_start = None
+        self.active = False
+        self.inactivity_timer = QTimer()
+        self.inactivity_timer.setInterval(3000)  # 3 sekundy
+        self.inactivity_timer.timeout.connect(self.check_inactivity)
+        self.inactivity_timer.start()
 
         self.activity_tracker = ActivityTracker()
         self.activity_tracker.activityChanged.connect(self.handle_activity_change)
+        self.activity_tracker.start()
 
     def initUI(self):
         exitAct = QAction(QIcon('exit.png'), '&Quit', self)
@@ -35,9 +41,9 @@ class Menu(QMainWindow):
 
         self.setGeometry(100, 100, 800, 600)
         self.setWindowTitle('Simple menu')
+        self.show()
 
         self.create_activity_widget()
-        self.show()
 
     def create_activity_widget(self):
         activity_widget = QWidget(self)
@@ -50,6 +56,13 @@ class Menu(QMainWindow):
         self.activity_label = QLabel("Tracking activity here...", groupbox)
         groupbox_layout = QVBoxLayout(groupbox)
         groupbox_layout.addWidget(self.activity_label)
+
+    def update_display(self):
+        active_periods_str = "\n".join(self.active_periods)
+        inactive_periods_str = "\n".join(self.inactive_periods)
+
+        activity_text = f"Aktivní období:\n{active_periods_str}\n\nNeaktivní období:\n{inactive_periods_str}"
+        self.activity_label.setText(activity_text)
 
     def handle_activity_change(self, active):
         current_time = QDateTime.currentDateTime()
@@ -65,19 +78,42 @@ class Menu(QMainWindow):
                 self.active_periods.append(
                     f"aktivní od {self.current_activity_start.toString('hh:mm:ss')} do {current_time.toString('hh:mm:ss')}"
                 )
-                self.current_inactivity_start = current_time
+                self.current_activity_start = None
+            self.current_inactivity_start = current_time
 
         self.update_display()
 
-    def update_display(self):
-        active_periods_str = "\n".join(self.active_periods)
-        inactive_periods_str = "\n".join(self.inactive_periods)
+    def check_inactivity(self):
+        if self.active:
+            current_time = QDateTime.currentDateTime()
+            self.active = False
+            if self.current_activity_start is not None:
+                self.active_periods.append(
+                    f"aktivní od {self.current_activity_start.toString('hh:mm:ss')} do {current_time.toString('hh:mm:ss')}"
+                )
+                self.current_activity_start = None
+                self.current_inactivity_start = current_time
+                self.update_display()
 
-        activity_text = f"Aktivní období:\n{active_periods_str}\n\nNeaktivní období:\n{inactive_periods_str}"
-        self.activity_label.setText(activity_text)
+    def applicationActivated_(self, notification):
+        if not self.active:
+            self.active = True
+            if self.current_inactivity_start is not None:
+                current_time = QDateTime.currentDateTime()
+                self.inactive_periods.append(
+                    f"neaktivní od {self.current_inactivity_start.toString('hh:mm:ss')} do {current_time.toString('hh:mm:ss')}"
+                )
+                self.current_inactivity_start = None
+            self.current_activity_start = QDateTime.currentDateTime()
+            self.update_display()
 
-    def main(self):
-        self.activity_tracker.start()  # Start activity tracking
-        AppHelper.runEventLoop()  # Start PyQt event loop
-        self.activity_tracker.stop()  # Stop activity tracking
-
+    def applicationDeactivated_(self, notification):
+        if self.active:
+            self.active = False
+            current_time = QDateTime.currentDateTime()
+            self.active_periods.append(
+                f"aktivní od {self.current_activity_start.toString('hh:mm:ss')} do {current_time.toString('hh:mm:ss')}"
+            )
+            self.current_activity_start = None
+            self.current_inactivity_start = current_time
+            self.update_display()
