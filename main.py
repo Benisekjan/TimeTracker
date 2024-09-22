@@ -1,12 +1,11 @@
-import sys
 from PyQt5.QtWidgets import QApplication
-from PyObjCTools import AppHelper
 from gui.menu import Menu
+import sys
 
 def main():
     app = QApplication(sys.argv)
     window = Menu()
-    AppHelper.runEventLoop()
+    window.show()
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
