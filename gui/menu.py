@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QMainWindow, QAction, QLabel, QVBoxLayout, QGridLayout, QWidget, QGroupBox, QApplication
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QDateTime
+from PyQt5.QtCore import QDateTime, Qt
 from utils.activity_tracker import ActivityTracker
 
 class Menu(QMainWindow):
@@ -10,6 +10,7 @@ class Menu(QMainWindow):
 
         self.window_periods = []
         self.current_window_start = None
+        self.current_window_name = ""
 
         self.activity_tracker = ActivityTracker()
         self.activity_tracker.windowChanged.connect(self.handle_window_change)
@@ -36,26 +37,35 @@ class Menu(QMainWindow):
         self.setCentralWidget(activity_widget)
 
         layout = QVBoxLayout(activity_widget)
+        layout.setContentsMargins(0, 0, 0, 0)  # Odstranit okraje kolem rozložení
         groupbox = QGroupBox("Window Activity Tracker", activity_widget)
         layout.addWidget(groupbox)
 
         self.grid_layout = QGridLayout(groupbox)
+
+        # Přidání hlaviček do gridu
         self.window_label = QLabel("Window Name", groupbox)
         self.activation_time_label = QLabel("Activation Time", groupbox)
         self.duration_label = QLabel("Active Duration", groupbox)
 
-        # Adding headers to the grid
+        # Zarovnání pro hlavičky
+        self.window_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.activation_time_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.duration_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+
+        # Přidání hlavičkových labelů do gridu
         self.grid_layout.addWidget(self.window_label, 0, 0)
         self.grid_layout.addWidget(self.activation_time_label, 0, 1)
         self.grid_layout.addWidget(self.duration_label, 0, 2)
 
-        # Setting some spacing
+        # Nastavení rozestupů
         self.grid_layout.setHorizontalSpacing(20)
-        self.grid_layout.setVerticalSpacing(10)
+        self.grid_layout.setVerticalSpacing(5)  # Mírné vertikální rozestupy
 
-        self.window_labels = []  # List for window name labels
-        self.activation_time_labels = []  # List for activation time labels
-        self.duration_labels = []  # List for active duration labels
+        # Seznamy pro uchování detailů aktivit okna
+        self.window_labels = []  
+        self.activation_time_labels = []  
+        self.duration_labels = []  
 
     def handle_window_change(self, window_name):
         current_time = QDateTime.currentDateTime()
@@ -65,25 +75,30 @@ class Menu(QMainWindow):
                 f"{self.current_window_start.toString('hh:mm:ss')} to {current_time.toString('hh:mm:ss')}"
             )
 
-            # Adding previous window details to the display
-            window_label = QLabel(self.current_window_name, self)
-            activation_time_label = QLabel(self.current_window_start.toString('hh:mm:ss'), self)
-            duration_label = QLabel(previous_window_duration, self)
+            # Přidání detailů předchozího okna do zobrazení
+            window_label = QLabel(self.current_window_name)
+            activation_time_label = QLabel(self.current_window_start.toString('hh:mm:ss'))
+            duration_label = QLabel(previous_window_duration)
 
-            # Append labels to their respective lists
-            self.window_labels.append(window_label)
-            self.activation_time_labels.append(activation_time_label)
-            self.duration_labels.append(duration_label)
+            # Nastavení zarovnání pro každý label
+            window_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+            activation_time_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+            duration_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
 
-            # Add to the grid layout in the next available row
-            row = len(self.window_labels)
+            # Přidání do gridu na další dostupný řádek
+            row = len(self.window_labels) + 1  # +1 pro hlavičkový řádek
             self.grid_layout.addWidget(window_label, row, 0)
             self.grid_layout.addWidget(activation_time_label, row, 1)
             self.grid_layout.addWidget(duration_label, row, 2)
 
-        # Update current window and its start time
+            # Přidání labelů do příslušných seznamů (volitelné)
+            self.window_labels.append(window_label)
+            self.activation_time_labels.append(activation_time_label)
+            self.duration_labels.append(duration_label)
+
+        # Aktualizace aktuálního okna a jeho času spuštění
         self.current_window_name = window_name
         self.current_window_start = current_time
 
     def update_display(self):
-        pass  # No need for additional display updates
+        pass  # Není třeba dalších aktualizací zobrazení
