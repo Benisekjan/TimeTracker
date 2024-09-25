@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMainWindow, QAction, QLabel, QVBoxLayout, QWidget, QGroupBox, QApplication
+from PyQt5.QtWidgets import QMainWindow, QAction, QLabel, QVBoxLayout, QGridLayout, QWidget, QGroupBox, QApplication
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QDateTime
 from utils.activity_tracker import ActivityTracker
@@ -8,9 +8,8 @@ class Menu(QMainWindow):
         super().__init__()
         self.initUI()
 
-        self.active_periods = []
+        self.window_periods = []
         self.current_window_start = None
-        self.current_window = None
 
         self.activity_tracker = ActivityTracker()
         self.activity_tracker.windowChanged.connect(self.handle_window_change)
@@ -36,35 +35,55 @@ class Menu(QMainWindow):
         activity_widget = QWidget(self)
         self.setCentralWidget(activity_widget)
 
-        vbox = QVBoxLayout(activity_widget)
-        groupbox = QGroupBox("Activity Tracker", activity_widget)
-        vbox.addWidget(groupbox)
+        layout = QVBoxLayout(activity_widget)
+        groupbox = QGroupBox("Window Activity Tracker", activity_widget)
+        layout.addWidget(groupbox)
 
-        self.activity_label = QLabel("Tracking window changes...", groupbox)
-        groupbox_layout = QVBoxLayout(groupbox)
-        groupbox_layout.addWidget(self.activity_label)
+        self.grid_layout = QGridLayout(groupbox)
+        self.window_label = QLabel("Window Name", groupbox)
+        self.activation_time_label = QLabel("Activation Time", groupbox)
+        self.duration_label = QLabel("Active Duration", groupbox)
+
+        # Adding headers to the grid
+        self.grid_layout.addWidget(self.window_label, 0, 0)
+        self.grid_layout.addWidget(self.activation_time_label, 0, 1)
+        self.grid_layout.addWidget(self.duration_label, 0, 2)
+
+        # Setting some spacing
+        self.grid_layout.setHorizontalSpacing(20)
+        self.grid_layout.setVerticalSpacing(10)
+
+        self.window_labels = []  # List for window name labels
+        self.activation_time_labels = []  # List for activation time labels
+        self.duration_labels = []  # List for active duration labels
 
     def handle_window_change(self, window_name):
         current_time = QDateTime.currentDateTime()
 
-        # Zaznamenat konec předchozího okna, pokud existuje
-        if self.current_window is not None:
-            self.active_periods.append(
-                f"Window active {self.current_window} from {self.current_window_start.toString('hh:mm:ss')} to {current_time.toString('hh:mm:ss')}"
+        if self.current_window_start is not None:
+            previous_window_duration = (
+                f"{self.current_window_start.toString('hh:mm:ss')} to {current_time.toString('hh:mm:ss')}"
             )
 
-        # Aktualizovat aktuální okno
-        self.current_window = window_name
+            # Adding previous window details to the display
+            window_label = QLabel(self.current_window_name, self)
+            activation_time_label = QLabel(self.current_window_start.toString('hh:mm:ss'), self)
+            duration_label = QLabel(previous_window_duration, self)
+
+            # Append labels to their respective lists
+            self.window_labels.append(window_label)
+            self.activation_time_labels.append(activation_time_label)
+            self.duration_labels.append(duration_label)
+
+            # Add to the grid layout in the next available row
+            row = len(self.window_labels)
+            self.grid_layout.addWidget(window_label, row, 0)
+            self.grid_layout.addWidget(activation_time_label, row, 1)
+            self.grid_layout.addWidget(duration_label, row, 2)
+
+        # Update current window and its start time
+        self.current_window_name = window_name
         self.current_window_start = current_time
 
-        # Zaznamenat změnu okna
-        self.active_periods.append(
-            f"Window changed to {window_name} at {current_time.toString('hh:mm:ss')}"
-        )
-
-        self.update_display()
-
     def update_display(self):
-        active_periods_str = "\n".join(self.active_periods)
-        activity_text = f"Window periods:\n{active_periods_str}"
-        self.activity_label.setText(activity_text)
+        pass  # No need for additional display updates
