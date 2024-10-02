@@ -6,42 +6,43 @@ from utils.activity_tracker import ActivityTracker
 class Menu(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.initUI()
+        self.initUI()  # Inicializace uživatelského rozhraní
 
-        self.window_periods = []
-        self.current_window_start = None
-        self.current_window_name = ""
+        self.window_periods = []  # Seznam pro uchování období oken
+        self.current_window_start = None  # Počáteční čas aktuálního okna
+        self.current_window_name = ""  # Název aktuálního okna
 
-        self.activity_tracker = ActivityTracker()
-        self.activity_tracker.windowChanged.connect(self.handle_window_change)
+        self.activity_tracker = ActivityTracker()  # Inicializace sledovače aktivit
+        self.activity_tracker.windowChanged.connect(self.handle_window_change)  # Připojení signálu ke slotu
 
     def initUI(self):
+        # Vytvoření akce pro ukončení aplikace
         exitAct = QAction(QIcon('exit.png'), '&Quit', self)
-        exitAct.setShortcut('Ctrl+Q')
-        exitAct.setStatusTip('Exit application')
-        exitAct.triggered.connect(QApplication.instance().quit)
+        exitAct.setShortcut('Ctrl+Q')  # Nastavení klávesové zkratky
+        exitAct.setStatusTip('Exit application')  # Nastavení popisku
+        exitAct.triggered.connect(QApplication.instance().quit)  # Připojení akce k ukončení aplikace
 
-        menubar = self.menuBar()
-        menubar.setNativeMenuBar(False)
+        menubar = self.menuBar()  # Vytvoření menu baru
+        menubar.setNativeMenuBar(False)  # Nastavení nativního menu baru na False
 
-        fileMenu = menubar.addMenu('&File')
-        fileMenu.addAction(exitAct)
+        fileMenu = menubar.addMenu('&File')  # Přidání položky File do menu baru
+        fileMenu.addAction(exitAct)  # Přidání akce do položky File
 
-        self.setGeometry(100, 100, 800, 600)
-        self.setWindowTitle('Simple menu')
+        self.setGeometry(100, 100, 800, 600)  # Nastavení velikosti a pozice okna
+        self.setWindowTitle('Simple menu')  # Nastavení titulku okna
 
-        self.create_activity_widget()
+        self.create_activity_widget()  # Vytvoření widgetu pro sledování aktivit
 
     def create_activity_widget(self):
-        activity_widget = QWidget(self)
-        self.setCentralWidget(activity_widget)
+        activity_widget = QWidget(self)  # Vytvoření hlavního widgetu
+        self.setCentralWidget(activity_widget)  # Nastavení hlavního widgetu jako centrálního
 
-        layout = QVBoxLayout(activity_widget)
-        layout.setContentsMargins(0, 0, 0, 0)  # Odstranit okraje kolem rozložení
-        groupbox = QGroupBox("Window Activity Tracker", activity_widget)
-        layout.addWidget(groupbox)
+        layout = QVBoxLayout(activity_widget)  # Vytvoření vertikálního layoutu
+        layout.setContentsMargins(0, 0, 0, 0)  # Odstranění okrajů kolem layoutu
+        groupbox = QGroupBox("Window Activity Tracker", activity_widget)  # Vytvoření groupboxu
+        layout.addWidget(groupbox)  # Přidání groupboxu do layoutu
 
-        self.grid_layout = QGridLayout(groupbox)
+        self.grid_layout = QGridLayout(groupbox)  # Vytvoření grid layoutu uvnitř groupboxu
 
         # Přidání hlaviček do gridu
         self.window_label = QLabel("Window Name", groupbox)
@@ -59,18 +60,19 @@ class Menu(QMainWindow):
         self.grid_layout.addWidget(self.duration_label, 0, 2)
 
         # Nastavení rozestupů
-        self.grid_layout.setHorizontalSpacing(20)
-        self.grid_layout.setVerticalSpacing(5)  # Mírné vertikální rozestupy
+        self.grid_layout.setHorizontalSpacing(20)  # Horizontální rozestupy mezi sloupci
+        self.grid_layout.setVerticalSpacing(5)  # Vertikální rozestupy mezi řádky
 
         # Seznamy pro uchování detailů aktivit okna
-        self.window_labels = []  
-        self.activation_time_labels = []  
-        self.duration_labels = []  
+        self.window_labels = []  # Seznam pro názvy oken
+        self.activation_time_labels = []  # Seznam pro časy aktivace
+        self.duration_labels = []  # Seznam pro trvání aktivit
 
     def handle_window_change(self, window_name):
-        current_time = QDateTime.currentDateTime()
+        current_time = QDateTime.currentDateTime()  # Získání aktuálního času
 
         if self.current_window_start is not None:
+            # Výpočet trvání předchozího okna
             previous_window_duration = (
                 f"{self.current_window_start.toString('hh:mm:ss')} to {current_time.toString('hh:mm:ss')}"
             )
