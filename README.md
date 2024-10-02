@@ -1,3 +1,5 @@
+VERZE PRO MACOS
+
 Time Tracker
 
 Autor: Jan Beníšek
