@@ -5,6 +5,9 @@ from utils.activity_tracker import ActivityTracker
 import psutil
 
 class Menu(QMainWindow):
+    
+    MAX_RECORDS = 30  # Maximální počet záznamů, které se zobrazují
+
     def __init__(self):
         super().__init__()
         self.initUI()  # Inicializace uživatelského rozhraní
@@ -79,7 +82,7 @@ class Menu(QMainWindow):
         self.cpu_labels_list = []  # Seznam pro CPU
         self.ram_labels_list = []  # Seznam pro RAM
         self.disk_labels_list = []  # Seznam pro disk
-
+        
     def handle_window_change(self, window_name):
         current_time = QDateTime.currentDateTime()  # Získání aktuálního času
 
@@ -127,6 +130,38 @@ class Menu(QMainWindow):
             self.ram_labels_list.append(ram_label)
             self.disk_labels_list.append(disk_label)
 
+ # Omezit počet záznamů na MAX_RECORDS
+            if len(self.window_labels) > self.MAX_RECORDS:
+                # Odebrání nejstaršího záznamu z gridu a seznamů
+                oldest_row = 1  # První řádek po hlavičce
+                self.grid_layout.removeWidget(self.window_labels[0])
+                self.grid_layout.removeWidget(self.activation_time_labels[0])
+                self.grid_layout.removeWidget(self.duration_labels[0])
+                self.grid_layout.removeWidget(self.cpu_labels_list[0])
+                self.grid_layout.removeWidget(self.ram_labels_list[0])
+                self.grid_layout.removeWidget(self.disk_labels_list[0])
+
+                # Odebrání prvního záznamu ze seznamu
+                self.window_labels.pop(0)
+                self.activation_time_labels.pop(0)
+                self.duration_labels.pop(0)
+                self.cpu_labels_list.pop(0)
+                self.ram_labels_list.pop(0)
+                self.disk_labels_list.pop(0)
+
+                # Aktualizace zobrazení
+                self.update_grid()
+
         # Aktualizace aktuálního okna a jeho času spuštění
         self.current_window_name = window_name
         self.current_window_start = current_time
+
+    def update_grid(self):
+        # Metoda pro aktualizaci zobrazení gridu
+        for i, label in enumerate(self.window_labels):
+            self.grid_layout.addWidget(label, i + 1, 0)  # i + 1 kvůli hlavičce
+            self.grid_layout.addWidget(self.activation_time_labels[i], i + 1, 1)
+            self.grid_layout.addWidget(self.duration_labels[i], i + 1, 2)
+            self.grid_layout.addWidget(self.cpu_labels_list[i], i + 1, 3)
+            self.grid_layout.addWidget(self.ram_labels_list[i], i + 1, 4)
+            self.grid_layout.addWidget(self.disk_labels_list[i], i + 1, 5)
