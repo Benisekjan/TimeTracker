@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMainWindow, QAction, QLabel, QVBoxLayout, QGridLayout, QWidget, QGroupBox, QApplication
+from PyQt5.QtWidgets import QMainWindow, QAction, QLabel, QVBoxLayout, QGridLayout, QWidget, QGroupBox, QApplication, QSystemTrayIcon, QMenu, QMessageBox
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QDateTime, Qt
 from utils.activity_tracker import ActivityTracker
@@ -12,7 +12,14 @@ class Menu(QMainWindow):
         super().__init__()
         self.initUI()  # Inicializace uživatelského rozhraní
 
-        self.window_periods = []  # Seznam pro uchování období oken
+        # Inicializace seznamů pro uložení údajů o aktivitách
+        self.window_labels = []
+        self.activation_time_labels = []
+        self.duration_labels = []
+        self.cpu_labels_list = []
+        self.ram_labels_list = []
+        self.disk_labels_list = []
+
         self.current_window_start = None  # Počáteční čas aktuálního okna
         self.current_window_name = ""  # Název aktuálního okna
 
@@ -22,31 +29,41 @@ class Menu(QMainWindow):
     def initUI(self):
         # Vytvoření akce pro ukončení aplikace
         exitAct = QAction(QIcon('exit.png'), '&Quit', self)
-        exitAct.setShortcut('Ctrl+Q')  # Nastavení klávesové zkratky
-        exitAct.setStatusTip('Exit application')  # Nastavení popisku
-        exitAct.triggered.connect(QApplication.instance().quit)  # Připojení akce k ukončení aplikace
+        exitAct.setShortcut('Ctrl+Q')
+        exitAct.setStatusTip('Exit application')
+        exitAct.triggered.connect(self.exit_app)
 
-        menubar = self.menuBar()  # Vytvoření menu baru
-        menubar.setNativeMenuBar(False)  # Nastavení nativního menu baru na False
+        # Vytvoření akce pro zobrazení okna
+        showAct = QAction(QIcon('show.png'), '&Show', self)
+        showAct.setStatusTip('Show application')
+        showAct.triggered.connect(self.show_window)
 
-        fileMenu = menubar.addMenu('&File')  # Přidání položky File do menu baru
-        fileMenu.addAction(exitAct)  # Přidání akce do položky File
+        # Vytvoření systémové ikony
+        self.tray_icon = QSystemTrayIcon(self)
+        self.tray_icon.setIcon(QIcon('icons/icon.png'))  # Ujistěte se, že máte tuto ikonu
 
-        self.setGeometry(100, 100, 800, 600)  # Nastavení velikosti a pozice okna
-        self.setWindowTitle('Time Tracker')  # Nastavení titulku okna
+        # Vytvoření kontextového menu pro ikonu
+        tray_menu = QMenu()
+        tray_menu.addAction(showAct)  # Přidání akce pro zobrazení okna
+        tray_menu.addAction(exitAct)  # Přidání akce pro ukončení aplikace
 
-        self.create_activity_widget()  # Vytvoření widgetu pro sledování aktivit
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.show()
+
+        self.create_activity_widget()  # Zavolání metody pro vytvoření layoutu
 
     def create_activity_widget(self):
-        activity_widget = QWidget(self)  # Vytvoření hlavního widgetu
-        self.setCentralWidget(activity_widget)  # Nastavení hlavního widgetu jako centrálního
+        # Vytvoření hlavního widgetu
+        activity_widget = QWidget(self)
+        self.setCentralWidget(activity_widget)
 
         layout = QVBoxLayout(activity_widget)  # Vytvoření vertikálního layoutu
         layout.setContentsMargins(20, 0, 20, 20)  # Nastavení okrajů kolem layoutu
         groupbox = QGroupBox("Window Activity Tracker", activity_widget)  # Vytvoření groupboxu
         layout.addWidget(groupbox)  # Přidání groupboxu do layoutu
 
-        self.grid_layout = QGridLayout(groupbox)  # Vytvoření grid layoutu uvnitř groupboxu
+        # Vytvoření grid layoutu uvnitř groupboxu a jeho přiřazení do objektu
+        self.grid_layout = QGridLayout(groupbox)  # Zde je grid_layout inicializován
 
         # Přidání hlaviček do gridu
         self.window_label = QLabel("Window Name", groupbox)
@@ -72,19 +89,27 @@ class Menu(QMainWindow):
         self.grid_layout.addWidget(self.ram_label, 0, 4)
         self.grid_layout.addWidget(self.disk_label, 0, 5)
 
-        # Nastavení rozestupů
-        self.grid_layout.setAlignment(Qt.AlignTop)
+    def exit_app(self):
+        QApplication.instance().quit()
 
-        # Seznamy pro uchování detailů aktivit okna
-        self.window_labels = []  # Seznam pro názvy oken
-        self.activation_time_labels = []  # Seznam pro časy aktivace
-        self.duration_labels = []  # Seznam pro trvání aktivit
-        self.cpu_labels_list = []  # Seznam pro CPU
-        self.ram_labels_list = []  # Seznam pro RAM
-        self.disk_labels_list = []  # Seznam pro disk
-        
+    def show_window(self):
+        self.show()  # Zobrazí hlavní okno aplikace
+        self.raise_()  # Přivede okno na popředí
+        self.activateWindow()  # Aktivuje okno
+
+    def closeEvent(self, event):
+        """Při zavření okna se aplikace minimalizuje do systémové lišty."""
+        event.ignore()  # Zabránit úplnému zavření okna
+        self.hide()  # Schovat hlavní okno aplikace
+        self.tray_icon.showMessage(
+            "Application Minimized", 
+            "TimeTracker běží na pozadí. Otevřete ji kliknutím na ikonu v systémové liště.",
+            QSystemTrayIcon.Information,
+            2000
+        )
+
     def handle_window_change(self, window_name):
-        current_time = QDateTime.currentDateTime()  # Získání aktuálního času
+        current_time = QDateTime.currentDateTime()
 
         if self.current_window_start is not None:
             # Výpočet trvání předchozího okna
@@ -105,7 +130,7 @@ class Menu(QMainWindow):
             ram_label = QLabel(f"{ram_info.percent}%")
             disk_label = QLabel(f"{disk_info.percent}%")
 
-            # Nastavení zarovnání pro každý label
+            # Zarovnání pro každý label
             window_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
             activation_time_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
             duration_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
@@ -113,8 +138,8 @@ class Menu(QMainWindow):
             ram_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
             disk_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
 
-            # Přidání do gridu na další dostupný řádek
-            row = len(self.window_labels) + 1  # +1 pro hlavičkový řádek
+            # Přidání do grid layoutu
+            row = len(self.window_labels) + 1
             self.grid_layout.addWidget(window_label, row, 0)
             self.grid_layout.addWidget(activation_time_label, row, 1)
             self.grid_layout.addWidget(duration_label, row, 2)
@@ -122,7 +147,7 @@ class Menu(QMainWindow):
             self.grid_layout.addWidget(ram_label, row, 4)
             self.grid_layout.addWidget(disk_label, row, 5)
 
-            # Přidání labelů do příslušných seznamů (volitelné)
+            # Uložení do seznamů
             self.window_labels.append(window_label)
             self.activation_time_labels.append(activation_time_label)
             self.duration_labels.append(duration_label)
@@ -130,36 +155,45 @@ class Menu(QMainWindow):
             self.ram_labels_list.append(ram_label)
             self.disk_labels_list.append(disk_label)
 
- # Omezit počet záznamů na MAX_RECORDS
+            # Omezit počet záznamů na MAX_RECORDS
             if len(self.window_labels) > self.MAX_RECORDS:
-                # Odebrání nejstaršího záznamu z gridu a seznamů
-                oldest_row = 1  # První řádek po hlavičce
-                self.grid_layout.removeWidget(self.window_labels[0])
-                self.grid_layout.removeWidget(self.activation_time_labels[0])
-                self.grid_layout.removeWidget(self.duration_labels[0])
-                self.grid_layout.removeWidget(self.cpu_labels_list[0])
-                self.grid_layout.removeWidget(self.ram_labels_list[0])
-                self.grid_layout.removeWidget(self.disk_labels_list[0])
+                # Odebrání nejstaršího záznamu
+                self.remove_oldest_record()
 
-                # Odebrání prvního záznamu ze seznamu
-                self.window_labels.pop(0)
-                self.activation_time_labels.pop(0)
-                self.duration_labels.pop(0)
-                self.cpu_labels_list.pop(0)
-                self.ram_labels_list.pop(0)
-                self.disk_labels_list.pop(0)
-
-                # Aktualizace zobrazení
-                self.update_grid()
-
-        # Aktualizace aktuálního okna a jeho času spuštění
+        # Aktualizace aktuálního okna
         self.current_window_name = window_name
         self.current_window_start = current_time
 
+    def remove_oldest_record(self):
+        # Odstranění nejstaršího záznamu z gridu a seznamů
+        self.grid_layout.removeWidget(self.window_labels[0])
+        self.grid_layout.removeWidget(self.activation_time_labels[0])
+        self.grid_layout.removeWidget(self.duration_labels[0])
+        self.grid_layout.removeWidget(self.cpu_labels_list[0])
+        self.grid_layout.removeWidget(self.ram_labels_list[0])
+        self.grid_layout.removeWidget(self.disk_labels_list[0])
+
+        self.window_labels[0].deleteLater()
+        self.activation_time_labels[0].deleteLater()
+        self.duration_labels[0].deleteLater()
+        self.cpu_labels_list[0].deleteLater()
+        self.ram_labels_list[0].deleteLater()
+        self.disk_labels_list[0].deleteLater()
+
+        self.window_labels.pop(0)
+        self.activation_time_labels.pop(0)
+        self.duration_labels.pop(0)
+        self.cpu_labels_list.pop(0)
+        self.ram_labels_list.pop(0)
+        self.disk_labels_list.pop(0)
+
+        # Aktualizace zobrazení gridu
+        self.update_grid()
+
     def update_grid(self):
-        # Metoda pro aktualizaci zobrazení gridu
+        # Aktualizace gridu po odstranění záznamu
         for i, label in enumerate(self.window_labels):
-            self.grid_layout.addWidget(label, i + 1, 0)  # i + 1 kvůli hlavičce
+            self.grid_layout.addWidget(label, i + 1, 0)
             self.grid_layout.addWidget(self.activation_time_labels[i], i + 1, 1)
             self.grid_layout.addWidget(self.duration_labels[i], i + 1, 2)
             self.grid_layout.addWidget(self.cpu_labels_list[i], i + 1, 3)
