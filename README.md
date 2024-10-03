@@ -1,3 +1,5 @@
+VERZE PRO WINDOWS
+
 Time Tracker
 
 Autor: Jan Beníšek
