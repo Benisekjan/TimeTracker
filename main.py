@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu
+from PyQt5.QtWidgets import QApplication
 from gui.menu import Menu  # Import hlavní třídy okna z modulu menu
 import sys
 
@@ -8,6 +8,9 @@ def main():
 
     # Vytvoření hlavního okna aplikace
     window = Menu()
+    
+    # Zobrazení okna
+    window.show()
 
     # Spuštění hlavní smyčky aplikace
     sys.exit(app.exec_())

@@ -6,7 +6,7 @@ import psutil
 
 class Menu(QMainWindow):
     
-    MAX_RECORDS = 30  # Maximální počet záznamů, které se zobrazují
+    MAX_RECORDS = 10  # Maximální počet záznamů, které se zobrazují
 
     def __init__(self):
         super().__init__()
@@ -40,7 +40,7 @@ class Menu(QMainWindow):
 
         # Vytvoření systémové ikony
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QIcon('icons/icon.png'))  # Ujistěte se, že máte tuto ikonu
+        self.tray_icon.setIcon(QIcon('icons/icon.png'))  
 
         # Vytvoření kontextového menu pro ikonu
         tray_menu = QMenu()
@@ -73,13 +73,18 @@ class Menu(QMainWindow):
         self.ram_label = QLabel("RAM Usage", groupbox)
         self.disk_label = QLabel("Disk Usage", groupbox)
 
+        self.grid_layout.setAlignment(Qt.AlignTop)
+
+
         # Zarovnání pro hlavičky
         self.window_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        self.activation_time_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self.activation_time_label.setAlignment(Qt.AlignTop)
         self.duration_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.cpu_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.ram_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.disk_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        
+        
 
         # Přidání hlavičkových labelů do gridu
         self.grid_layout.addWidget(self.window_label, 0, 0)
@@ -94,16 +99,16 @@ class Menu(QMainWindow):
 
     def show_window(self):
         self.show()  # Zobrazí hlavní okno aplikace
-        self.raise_()  # Přivede okno na popředí
+        self.raise_()  # Přenese okno do popředí
         self.activateWindow()  # Aktivuje okno
 
     def closeEvent(self, event):
-        """Při zavření okna se aplikace minimalizuje do systémové lišty."""
-        event.ignore()  # Zabránit úplnému zavření okna
-        self.hide()  # Schovat hlavní okno aplikace
+        #Když je okno zavřeno, aplikace se minimalizuje do systémové lišty.
+        event.ignore()  # Zabrání úplnému zavření okna
+        self.hide()  # Skryje hlavní okno aplikace
         self.tray_icon.showMessage(
             "Application Minimized", 
-            "TimeTracker běží na pozadí. Otevřete ji kliknutím na ikonu v systémové liště.",
+            "TimeTracker běží na pozadí. Otevřete jej kliknutím na ikonu v systémové liště.",
             QSystemTrayIcon.Information,
             2000
         )
@@ -112,17 +117,17 @@ class Menu(QMainWindow):
         current_time = QDateTime.currentDateTime()
 
         if self.current_window_start is not None:
-            # Výpočet trvání předchozího okna
+            # Vypočítá dobu trvání předchozího okna
             previous_window_duration = (
                 f"{self.current_window_start.toString('hh:mm:ss')} to {current_time.toString('hh:mm:ss')}"
             )
 
-            # Získání systémových prostředků
+            # Získá systémové zdroje
             cpu_usage = psutil.cpu_percent(interval=1)
             ram_info = psutil.virtual_memory()
             disk_info = psutil.disk_usage('/')
 
-            # Přidání detailů předchozího okna do zobrazení
+            # Přidá detaily předchozího okna do zobrazení
             window_label = QLabel(self.current_window_name)
             activation_time_label = QLabel(self.current_window_start.toString('hh:mm:ss'))
             duration_label = QLabel(previous_window_duration)
@@ -130,7 +135,7 @@ class Menu(QMainWindow):
             ram_label = QLabel(f"{ram_info.percent}%")
             disk_label = QLabel(f"{disk_info.percent}%")
 
-            # Zarovnání pro každý label
+            # Zarovná každý label
             window_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
             activation_time_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
             duration_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
@@ -138,7 +143,7 @@ class Menu(QMainWindow):
             ram_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
             disk_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
 
-            # Přidání do grid layoutu
+            # Přidá do grid layoutu
             row = len(self.window_labels) + 1
             self.grid_layout.addWidget(window_label, row, 0)
             self.grid_layout.addWidget(activation_time_label, row, 1)
@@ -147,7 +152,7 @@ class Menu(QMainWindow):
             self.grid_layout.addWidget(ram_label, row, 4)
             self.grid_layout.addWidget(disk_label, row, 5)
 
-            # Uložení do seznamů
+            # Uloží do seznamů
             self.window_labels.append(window_label)
             self.activation_time_labels.append(activation_time_label)
             self.duration_labels.append(duration_label)
@@ -155,12 +160,12 @@ class Menu(QMainWindow):
             self.ram_labels_list.append(ram_label)
             self.disk_labels_list.append(disk_label)
 
-            # Omezit počet záznamů na MAX_RECORDS
+            # Omezí počet záznamů na MAX_RECORDS
             if len(self.window_labels) > self.MAX_RECORDS:
-                # Odebrání nejstaršího záznamu
+                # Odstraní nejstarší záznam
                 self.remove_oldest_record()
 
-        # Aktualizace aktuálního okna
+        # Aktualizuje aktuální okno
         self.current_window_name = window_name
         self.current_window_start = current_time
 
