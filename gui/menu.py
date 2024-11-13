@@ -1,206 +1,196 @@
-from PyQt5.QtWidgets import QMainWindow, QAction, QLabel, QVBoxLayout, QGridLayout, QWidget, QGroupBox, QApplication, QSystemTrayIcon, QMenu, QMessageBox
+from PyQt5.QtWidgets import QMainWindow, QAction, QVBoxLayout, QTableWidget, QTableWidgetItem, QMenu, QSystemTrayIcon, QApplication, QWidget
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QDateTime, Qt
-from utils.activity_tracker import ActivityTracker
+from PyQt5.QtCore import QTimer, QDateTime
 import psutil
+import time
+
+from utils.activity_tracker import ActivityTracker  # Import ActivityTracker
 
 class Menu(QMainWindow):
-    
-    MAX_RECORDS = 10  # Maximální počet záznamů, které se zobrazují
-
     def __init__(self):
         super().__init__()
-        self.initUI()  # Inicializace uživatelského rozhraní
+        self.initUI()
 
-        # Inicializace seznamů pro uložení údajů o aktivitách
-        self.window_labels = []
-        self.activation_time_labels = []
-        self.duration_labels = []
-        self.cpu_labels_list = []
-        self.ram_labels_list = []
-        self.disk_labels_list = []
+        # Vytvoření instance ActivityTracker pro sledování aktivního okna
+        self.activity_tracker = ActivityTracker()
+        self.activity_tracker.windowChanged.connect(self.on_window_changed)
 
-        self.current_window_start = None  # Počáteční čas aktuálního okna
-        self.current_window_name = ""  # Název aktuálního okna
+        # Slovník pro uchování časů aktivace a kumulované doby aktivace
+        self.window_data = {}
+        self.active_window = None
+        self.active_start_time = None
 
-        self.activity_tracker = ActivityTracker()  # Inicializace sledovače aktivit
-        self.activity_tracker.windowChanged.connect(self.handle_window_change)  # Připojení signálu ke slotu
+        # Nastavení časovače pro aktualizaci každé 3 sekundy
+        self.update_timer = QTimer(self)
+        self.update_timer.timeout.connect(self.update_process_info)
+        self.update_timer.start(1000)
 
     def initUI(self):
-        # Vytvoření akce pro ukončení aplikace
-        exitAct = QAction(QIcon('exit.png'), '&Quit', self)
-        exitAct.setShortcut('Ctrl+Q')
-        exitAct.setStatusTip('Exit application')
-        exitAct.triggered.connect(self.exit_app)
-
-        # Vytvoření akce pro zobrazení okna
-        showAct = QAction(QIcon('show.png'), '&Show', self)
-        showAct.setStatusTip('Show application')
-        showAct.triggered.connect(self.show_window)
-
-        # Vytvoření systémové ikony
+        # Ikona pro tray a menu
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QIcon('icons/icon.png'))  
+        self.tray_icon.setIcon(QIcon('icons/icon.png'))
 
-        # Vytvoření kontextového menu pro ikonu
         tray_menu = QMenu()
-        tray_menu.addAction(showAct)  # Přidání akce pro zobrazení okna
-        tray_menu.addAction(exitAct)  # Přidání akce pro ukončení aplikace
+        showAct = QAction("Zobrazit", self)
+        showAct.triggered.connect(self.show_window)
+        tray_menu.addAction(showAct)
+
+        exitAct = QAction("Ukončit", self)
+        exitAct.triggered.connect(self.exit_app)
+        tray_menu.addAction(exitAct)
 
         self.tray_icon.setContextMenu(tray_menu)
         self.tray_icon.show()
 
-        self.create_activity_widget()  # Zavolání metody pro vytvoření layoutu
-
-    def create_activity_widget(self):
-        # Vytvoření hlavního widgetu
-        activity_widget = QWidget(self)
-        self.setCentralWidget(activity_widget)
-
-        layout = QVBoxLayout(activity_widget)  # Vytvoření vertikálního layoutu
-        layout.setContentsMargins(20, 0, 20, 20)  # Nastavení okrajů kolem layoutu
-        groupbox = QGroupBox("Window Activity Tracker", activity_widget)  # Vytvoření groupboxu
-        layout.addWidget(groupbox)  # Přidání groupboxu do layoutu
-
-        # Vytvoření grid layoutu uvnitř groupboxu a jeho přiřazení do objektu
-        self.grid_layout = QGridLayout(groupbox)  # Zde je grid_layout inicializován
-
-        # Přidání hlaviček do gridu
-        self.window_label = QLabel("Window Name", groupbox)
-        self.activation_time_label = QLabel("Activation Time", groupbox)
-        self.duration_label = QLabel("Active Duration", groupbox)
-        self.cpu_label = QLabel("CPU Usage", groupbox)
-        self.ram_label = QLabel("RAM Usage", groupbox)
-        self.disk_label = QLabel("Disk Usage", groupbox)
-
-        self.grid_layout.setAlignment(Qt.AlignTop)
-
-
-        # Zarovnání pro hlavičky
-        self.window_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        self.activation_time_label.setAlignment(Qt.AlignTop)
-        self.duration_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        self.cpu_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        self.ram_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        self.disk_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        # Widget pro zobrazení tabulky s procesy
+        central_widget = QWidget(self)
+        self.setCentralWidget(central_widget)
+        layout = QVBoxLayout(central_widget)
         
+        # Tabulka s informacemi o procesech
+        self.table_widget = QTableWidget()
+        self.table_widget.setColumnCount(7)  # Sloupce: Název okna, čas aktivace, doba aktivace, CPU, RAM, Čtení disku, Zápis disku
+        self.table_widget.setHorizontalHeaderLabels(["Název okna", "Čas aktivace", "Doba aktivace", "CPU", "RAM", "Čtení disku", "Zápis disku"])
         
 
-        # Přidání hlavičkových labelů do gridu
-        self.grid_layout.addWidget(self.window_label, 0, 0)
-        self.grid_layout.addWidget(self.activation_time_label, 0, 1)
-        self.grid_layout.addWidget(self.duration_label, 0, 2)
-        self.grid_layout.addWidget(self.cpu_label, 0, 3)
-        self.grid_layout.addWidget(self.ram_label, 0, 4)
-        self.grid_layout.addWidget(self.disk_label, 0, 5)
+
+        layout.addWidget(self.table_widget)
+
+        self.setWindowTitle("Sledování aktivit oken")
+        self.resize(800, 600)
 
     def exit_app(self):
         QApplication.instance().quit()
 
     def show_window(self):
-        self.show()  # Zobrazí hlavní okno aplikace
-        self.raise_()  # Přenese okno do popředí
-        self.activateWindow()  # Aktivuje okno
+        self.show()
+        self.raise_()
+        self.activateWindow()
 
     def closeEvent(self, event):
-        #Když je okno zavřeno, aplikace se minimalizuje do systémové lišty.
-        event.ignore()  # Zabrání úplnému zavření okna
-        self.hide()  # Skryje hlavní okno aplikace
+        event.ignore()
+        self.hide()
         self.tray_icon.showMessage(
-            "Application Minimized", 
+            "Aplikace minimalizována",
             "TimeTracker běží na pozadí. Otevřete jej kliknutím na ikonu v systémové liště.",
             QSystemTrayIcon.Information,
             2000
         )
 
-    def handle_window_change(self, window_name):
-        current_time = QDateTime.currentDateTime()
+    def on_window_changed(self, window_name):
+        # Tato metoda se spustí při změně aktivního okna
+        current_time = time.time()
 
-        if self.current_window_start is not None:
-            # Vypočítá dobu trvání předchozího okna
-            previous_window_duration = (
-                f"{self.current_window_start.toString('hh:mm:ss')} to {current_time.toString('hh:mm:ss')}"
-            )
+        # Pokud je nové aktivní okno odlišné od posledního
+        if window_name != self.active_window:
+            # Pokud bylo nějaké okno aktivní, vypočteme dobu aktivace a přičteme ji do slovníku
+            if self.active_window and self.active_window in self.window_data:
+                elapsed_time = current_time - self.active_start_time
+                self.window_data[self.active_window]['total_duration'] += elapsed_time
 
-            # Získá systémové zdroje
-            cpu_usage = psutil.cpu_percent(interval=1)
-            ram_info = psutil.virtual_memory()
-            disk_info = psutil.disk_usage('/')
+            # Nastavíme nové aktivní okno a začneme měřit dobu jeho aktivace
+            if window_name in self.window_data:
+                # Pokud už je okno zaznamenáno, obnovíme čas spuštění, ale ne čas aktivace
+                self.active_start_time = current_time
+            else:
+                # Pro nové okno nastavíme čas aktivace a vytvoříme záznam
+                self.window_data[window_name] = {
+                    'activation_time': QDateTime.currentDateTime().toString("hh:mm:ss"),
+                    'total_duration': 0.0
+                }
+                self.active_start_time = current_time
+            
+            # Aktualizujeme aktivní okno
+            self.active_window = window_name
 
-            # Přidá detaily předchozího okna do zobrazení
-            window_label = QLabel(self.current_window_name)
-            activation_time_label = QLabel(self.current_window_start.toString('hh:mm:ss'))
-            duration_label = QLabel(previous_window_duration)
-            cpu_label = QLabel(f"{cpu_usage}%")
-            ram_label = QLabel(f"{ram_info.percent}%")
-            disk_label = QLabel(f"{disk_info.percent}%")
+        # Aktualizace tabulky
+        self.update_process_info()
 
-            # Zarovná každý label
-            window_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-            activation_time_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-            duration_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-            cpu_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-            ram_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-            disk_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+    def update_process_info(self):
+        # Zakáže řazení během aktualizace, aby nedošlo k nekonzistencím
+        self.table_widget.setSortingEnabled(False)
+        self.table_widget.setRowCount(0)  # Vymaže stávající řádky
+        processes = {}
 
-            # Přidá do grid layoutu
-            row = len(self.window_labels) + 1
-            self.grid_layout.addWidget(window_label, row, 0)
-            self.grid_layout.addWidget(activation_time_label, row, 1)
-            self.grid_layout.addWidget(duration_label, row, 2)
-            self.grid_layout.addWidget(cpu_label, row, 3)
-            self.grid_layout.addWidget(ram_label, row, 4)
-            self.grid_layout.addWidget(disk_label, row, 5)
+        for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
+            try:
+                pid = p.info['pid']
+                process_name = p.info['name']
+                cpu_usage = p.info['cpu_percent']
+                ram_usage = p.info['memory_percent']
 
-            # Uloží do seznamů
-            self.window_labels.append(window_label)
-            self.activation_time_labels.append(activation_time_label)
-            self.duration_labels.append(duration_label)
-            self.cpu_labels_list.append(cpu_label)
-            self.ram_labels_list.append(ram_label)
-            self.disk_labels_list.append(disk_label)
+                if self.is_user_process(pid, process_name) and cpu_usage is not None and ram_usage is not None:
+                    ram_usage = round(ram_usage, 2)
 
-            # Omezí počet záznamů na MAX_RECORDS
-            if len(self.window_labels) > self.MAX_RECORDS:
-                # Odstraní nejstarší záznam
-                self.remove_oldest_record()
+                    io_counters = p.io_counters() if hasattr(p, 'io_counters') else None
+                    disk_read = io_counters.read_bytes if io_counters else 0
+                    disk_write = io_counters.write_bytes if io_counters else 0
 
-        # Aktualizuje aktuální okno
-        self.current_window_name = window_name
-        self.current_window_start = current_time
+                    if process_name in processes:
+                        processes[process_name]['cpu_percent'] += cpu_usage
+                        processes[process_name]['memory_percent'] += ram_usage
+                        processes[process_name]['disk_read'] += disk_read
+                        processes[process_name]['disk_write'] += disk_write
+                    else:
+                        processes[process_name] = {
+                            'name': process_name,
+                            'cpu_percent': cpu_usage,
+                            'memory_percent': ram_usage,
+                            'disk_read': disk_read,
+                            'disk_write': disk_write
+                        }
 
-    def remove_oldest_record(self):
-        # Odstranění nejstaršího záznamu z gridu a seznamů
-        self.grid_layout.removeWidget(self.window_labels[0])
-        self.grid_layout.removeWidget(self.activation_time_labels[0])
-        self.grid_layout.removeWidget(self.duration_labels[0])
-        self.grid_layout.removeWidget(self.cpu_labels_list[0])
-        self.grid_layout.removeWidget(self.ram_labels_list[0])
-        self.grid_layout.removeWidget(self.disk_labels_list[0])
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
 
-        self.window_labels[0].deleteLater()
-        self.activation_time_labels[0].deleteLater()
-        self.duration_labels[0].deleteLater()
-        self.cpu_labels_list[0].deleteLater()
-        self.ram_labels_list[0].deleteLater()
-        self.disk_labels_list[0].deleteLater()
+        for process_info in processes.values():
+            row_position = self.table_widget.rowCount()
+            self.table_widget.insertRow(row_position)
 
-        self.window_labels.pop(0)
-        self.activation_time_labels.pop(0)
-        self.duration_labels.pop(0)
-        self.cpu_labels_list.pop(0)
-        self.ram_labels_list.pop(0)
-        self.disk_labels_list.pop(0)
+            disk_read_b = process_info['disk_read']
+            disk_write_b = process_info['disk_write']
 
-        # Aktualizace zobrazení gridu
-        self.update_grid()
+            disk_read_display = f"{disk_read_b} B/s" if disk_read_b < 1024 else f"{disk_read_b / 1024:.2f} KB/s"
+            disk_write_display = f"{disk_write_b} B/s" if disk_write_b < 1024 else f"{disk_write_b / 1024:.2f} KB/s"
 
-    def update_grid(self):
-        # Aktualizace gridu po odstranění záznamu
-        for i, label in enumerate(self.window_labels):
-            self.grid_layout.addWidget(label, i + 1, 0)
-            self.grid_layout.addWidget(self.activation_time_labels[i], i + 1, 1)
-            self.grid_layout.addWidget(self.duration_labels[i], i + 1, 2)
-            self.grid_layout.addWidget(self.cpu_labels_list[i], i + 1, 3)
-            self.grid_layout.addWidget(self.ram_labels_list[i], i + 1, 4)
-            self.grid_layout.addWidget(self.disk_labels_list[i], i + 1, 5)
+            if process_info['name'] in self.window_data:
+                activation_time = self.window_data[process_info['name']]['activation_time']
+                total_duration = self.window_data[process_info['name']]['total_duration']
+
+                if process_info['name'] == self.active_window:
+                    total_duration += time.time() - self.active_start_time
+                total_duration = round(total_duration)
+            else:
+                activation_time = "--"
+                total_duration = "--"
+
+            # Nastavení všech sloupců pro aktuální řádek, aby se předešlo chybám při řazení
+            self.table_widget.setItem(row_position, 0, QTableWidgetItem(process_info['name']))
+            self.table_widget.setItem(row_position, 1, QTableWidgetItem(activation_time))
+            self.table_widget.setItem(row_position, 2, QTableWidgetItem(f"{total_duration} s"))
+            self.table_widget.setItem(row_position, 3, QTableWidgetItem(f"{process_info['cpu_percent']}%"))
+            self.table_widget.setItem(row_position, 4, QTableWidgetItem(f"{process_info['memory_percent']}%"))
+            self.table_widget.setItem(row_position, 5, QTableWidgetItem(disk_read_display))
+            self.table_widget.setItem(row_position, 6, QTableWidgetItem(disk_write_display))
+
+        # Povolí řazení po aktualizaci tabulky
+        self.table_widget.setSortingEnabled(True)
+
+    def is_user_process(self, pid, process_name):
+        system_processes = [
+                'kernel_task', 'launchd', 'syslogd', 'hidd', 'WindowServer', 'timed', 'usbmuxd', 'locationd',
+                'UserEventAgent', 'universalaccessd', 'pboard', 'talagentd', 'ControlCenter', 'SystemUIServer',
+                'distnoted', 'nsurlsessiond', 'mdnsresponder', 'appleeventsd', 'coreaudiod', 'symptomsd',
+                'airportd', 'configd', 'sandboxd', 'iconservicesagent', 'fileproviderd', 'diskarbitrationd',
+                'securityd', 'spindump', 'spotlightd', 'sysmond', 'analyticsd', 'trustd'
+            ]
+        if process_name.lower() in system_processes:
+            return False
+
+        try:
+            proc = psutil.Process(pid)
+            if proc.username() == 'root' or proc.status() == psutil.STATUS_ZOMBIE or not proc.is_running():
+                return False
+        except psutil.AccessDenied:
+            return False
+        return True
