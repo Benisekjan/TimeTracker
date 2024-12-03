@@ -20,7 +20,7 @@ class Menu(QMainWindow):
         self.active_window = None
         self.active_start_time = None
 
-        # Nastavení časovače pro aktualizaci každé 3 sekundy
+        # Nastavení časovače pro aktualizaci každou sekundu
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.update_process_info)
         self.update_timer.start(1000)
@@ -49,11 +49,11 @@ class Menu(QMainWindow):
         
         # Tabulka s informacemi o procesech
         self.table_widget = QTableWidget()
-        self.table_widget.setColumnCount(7)  # Sloupce: Název okna, čas aktivace, doba aktivace, CPU, RAM, Čtení disku, Zápis disku
-        self.table_widget.setHorizontalHeaderLabels(["Název okna", "Čas aktivace", "Doba aktivace", "CPU", "RAM", "Čtení disku", "Zápis disku"])
-        
-
-
+        self.table_widget.setColumnCount(6)  # Počet sloupců upravený pro PID
+        self.table_widget.setHorizontalHeaderLabels([
+            "Název okna", "Poslední aktivace", "Doba aktivace", 
+            "CPU", "RAM", "PID"
+        ])
         layout.addWidget(self.table_widget)
 
         self.setWindowTitle("Sledování aktivit oken")
@@ -90,12 +90,13 @@ class Menu(QMainWindow):
 
             # Nastavíme nové aktivní okno a začneme měřit dobu jeho aktivace
             if window_name in self.window_data:
-                # Pokud už je okno zaznamenáno, obnovíme čas spuštění, ale ne čas aktivace
+                # Pokud už je okno zaznamenáno, aktualizujeme čas poslední aktivace
+                self.window_data[window_name]['last_activation_time'] = QDateTime.currentDateTime().toString("hh:mm:ss")
                 self.active_start_time = current_time
             else:
-                # Pro nové okno nastavíme čas aktivace a vytvoříme záznam
+                # Pro nové okno vytvoříme záznam
                 self.window_data[window_name] = {
-                    'activation_time': QDateTime.currentDateTime().toString("hh:mm:ss"),
+                    'last_activation_time': QDateTime.currentDateTime().toString("hh:mm:ss"),
                     'total_duration': 0.0
                 }
                 self.active_start_time = current_time
@@ -103,7 +104,7 @@ class Menu(QMainWindow):
             # Aktualizujeme aktivní okno
             self.active_window = window_name
 
-        # Aktualizace tabulky
+        # Aktualizujeme tabulku
         self.update_process_info()
 
     def update_process_info(self):
@@ -122,22 +123,15 @@ class Menu(QMainWindow):
                 if self.is_user_process(pid, process_name) and cpu_usage is not None and ram_usage is not None:
                     ram_usage = round(ram_usage, 2)
 
-                    io_counters = p.io_counters() if hasattr(p, 'io_counters') else None
-                    disk_read = io_counters.read_bytes if io_counters else 0
-                    disk_write = io_counters.write_bytes if io_counters else 0
-
                     if process_name in processes:
                         processes[process_name]['cpu_percent'] += cpu_usage
                         processes[process_name]['memory_percent'] += ram_usage
-                        processes[process_name]['disk_read'] += disk_read
-                        processes[process_name]['disk_write'] += disk_write
                     else:
                         processes[process_name] = {
                             'name': process_name,
                             'cpu_percent': cpu_usage,
                             'memory_percent': ram_usage,
-                            'disk_read': disk_read,
-                            'disk_write': disk_write
+                            'pid': pid
                         }
 
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
@@ -147,31 +141,24 @@ class Menu(QMainWindow):
             row_position = self.table_widget.rowCount()
             self.table_widget.insertRow(row_position)
 
-            disk_read_b = process_info['disk_read']
-            disk_write_b = process_info['disk_write']
-
-            disk_read_display = f"{disk_read_b} B/s" if disk_read_b < 1024 else f"{disk_read_b / 1024:.2f} KB/s"
-            disk_write_display = f"{disk_write_b} B/s" if disk_write_b < 1024 else f"{disk_write_b / 1024:.2f} KB/s"
-
             if process_info['name'] in self.window_data:
-                activation_time = self.window_data[process_info['name']]['activation_time']
+                last_activation_time = self.window_data[process_info['name']]['last_activation_time']
                 total_duration = self.window_data[process_info['name']]['total_duration']
 
                 if process_info['name'] == self.active_window:
                     total_duration += time.time() - self.active_start_time
                 total_duration = round(total_duration)
             else:
-                activation_time = "--"
+                last_activation_time = "--"
                 total_duration = "--"
 
-            # Nastavení všech sloupců pro aktuální řádek, aby se předešlo chybám při řazení
+            # Nastavení všech sloupců pro aktuální řádek
             self.table_widget.setItem(row_position, 0, QTableWidgetItem(process_info['name']))
-            self.table_widget.setItem(row_position, 1, QTableWidgetItem(activation_time))
+            self.table_widget.setItem(row_position, 1, QTableWidgetItem(last_activation_time))
             self.table_widget.setItem(row_position, 2, QTableWidgetItem(f"{total_duration} s"))
             self.table_widget.setItem(row_position, 3, QTableWidgetItem(f"{process_info['cpu_percent']}%"))
             self.table_widget.setItem(row_position, 4, QTableWidgetItem(f"{process_info['memory_percent']}%"))
-            self.table_widget.setItem(row_position, 5, QTableWidgetItem(disk_read_display))
-            self.table_widget.setItem(row_position, 6, QTableWidgetItem(disk_write_display))
+            self.table_widget.setItem(row_position, 5, QTableWidgetItem(str(process_info['pid'])))
 
         # Povolí řazení po aktualizaci tabulky
         self.table_widget.setSortingEnabled(True)
