@@ -30,17 +30,17 @@ class Menu(QMainWindow):
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(QIcon('icons/icon.png'))
 
-        tray_menu = QMenu()
-        showAct = QAction("Zobrazit", self)
+        tray_menu = QMenu()  # Vytvoření menu pro tray ikonu
+        showAct = QAction("Zobrazit", self)  # Akce pro zobrazení okna
         showAct.triggered.connect(self.show_window)
         tray_menu.addAction(showAct)
 
-        exitAct = QAction("Ukončit", self)
+        exitAct = QAction("Ukončit", self)  # Akce pro ukončení aplikace
         exitAct.triggered.connect(self.exit_app)
         tray_menu.addAction(exitAct)
 
-        self.tray_icon.setContextMenu(tray_menu)
-        self.tray_icon.show()
+        self.tray_icon.setContextMenu(tray_menu)  # Nastavení menu pro tray ikonu
+        self.tray_icon.show()  # Zobrazení tray ikony
 
         # Widget pro zobrazení tabulky s procesy
         central_widget = QWidget(self)
@@ -56,20 +56,20 @@ class Menu(QMainWindow):
         ])
         layout.addWidget(self.table_widget)
 
-        self.setWindowTitle("Sledování aktivit oken")
-        self.resize(800, 600)
+        self.setWindowTitle("Sledování aktivit oken")  # Nastavení názvu okna
+        self.resize(800, 600)  # Nastavení velikosti okna
 
     def exit_app(self):
-        QApplication.instance().quit()
+        QApplication.instance().quit()  # Ukončení aplikace
 
     def show_window(self):
-        self.show()
-        self.raise_()
-        self.activateWindow()
+        self.show()  # Zobrazení okna
+        self.raise_()  # Přenesení okna do popředí
+        self.activateWindow()  # Aktivace okna
 
     def closeEvent(self, event):
-        event.ignore()
-        self.hide()
+        event.ignore()  # Ignorování události zavření okna
+        self.hide()  # Skrytí okna
         self.tray_icon.showMessage(
             "Aplikace minimalizována",
             "TimeTracker běží na pozadí. Otevřete jej kliknutím na ikonu v systémové liště.",
@@ -138,8 +138,8 @@ class Menu(QMainWindow):
                 continue
 
         for process_info in processes.values():
-            row_position = self.table_widget.rowCount()
-            self.table_widget.insertRow(row_position)
+            row_position = self.table_widget.rowCount()  # Získání aktuální pozice řádku
+            self.table_widget.insertRow(row_position)  # Vložení nového řádku
 
             if process_info['name'] in self.window_data:
                 last_activation_time = self.window_data[process_info['name']]['last_activation_time']
@@ -164,6 +164,7 @@ class Menu(QMainWindow):
         self.table_widget.setSortingEnabled(True)
 
     def is_user_process(self, pid, process_name):
+        # Seznam systémových procesů, které chceme ignorovat
         system_processes = [
                 'kernel_task', 'launchd', 'syslogd', 'hidd', 'WindowServer', 'timed', 'usbmuxd', 'locationd',
                 'UserEventAgent', 'universalaccessd', 'pboard', 'talagentd', 'ControlCenter', 'SystemUIServer',
