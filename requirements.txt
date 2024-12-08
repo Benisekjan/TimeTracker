@@ -1,3 +1,7 @@
+EasyProcess==1.1
+entrypoint2==1.1
+mss==10.0.0
+pillow==11.0.0
 psutil==6.0.0
 pynput==1.7.7
 pyobjc==10.3.1
@@ -156,5 +160,6 @@ pyobjc-framework-Vision==10.3.1
 pyobjc-framework-WebKit==10.3.1
 PyQt5==5.15.10
 PyQt5-Qt5==5.15.14
-PyQt5-sip==12.13.0
+PyQt5_sip==12.13.0
+pyscreenshot==3.1
 six==1.16.0
