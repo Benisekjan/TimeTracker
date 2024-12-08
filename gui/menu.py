@@ -3,8 +3,8 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QTimer, QDateTime
 import psutil
 import time
-
 from utils.activity_tracker import ActivityTracker  # Import ActivityTracker
+from utils.screenshot import ScreenshotTaker  # Import ScreenshotTaker
 
 class Menu(QMainWindow):
     def __init__(self):
@@ -24,6 +24,12 @@ class Menu(QMainWindow):
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.update_process_info)
         self.update_timer.start(1000)
+
+        # Instance ScreenshotTaker a nastavení časovače pro screenshoty
+        self.screenshot_taker = ScreenshotTaker()  # Třída z utils/screenshot.py
+        self.screenshot_timer = QTimer(self)
+        self.screenshot_timer.timeout.connect(self.take_screenshot)
+        self.screenshot_timer.start(10000)  # 10000 ms = 10 sekund
 
     def initUI(self):
         # Ikona pro tray a menu
@@ -59,6 +65,15 @@ class Menu(QMainWindow):
         self.setWindowTitle("Sledování aktivit oken")  # Nastavení názvu okna
         self.resize(800, 600)  # Nastavení velikosti okna
 
+    def take_screenshot(self):
+        try:
+            # Pořízení screenshotu každých 10 sekund
+            timestamp = QDateTime.currentDateTime().toString("yyyy.MM.dd-HH-mm-ss")
+            filename = f"/tmp/{timestamp}.png"
+            self.screenshot_taker.take_screenshot(filename)
+        except Exception as e:
+            print(f"Chyba při pořizování screenshotu: {e}")
+            
     def exit_app(self):
         QApplication.instance().quit()  # Ukončení aplikace
 
