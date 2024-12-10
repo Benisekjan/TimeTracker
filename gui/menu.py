@@ -67,9 +67,8 @@ class Menu(QMainWindow):
 
     def take_screenshot(self):
         try:
-            # Pořízení screenshotu každých 10 sekund
             timestamp = QDateTime.currentDateTime().toString("yyyy.MM.dd-HH-mm-ss")
-            filename = f"/tmp/{timestamp}.png"
+            filename = f"/tmp/"
             self.screenshot_taker.take_screenshot(filename)
         except Exception as e:
             print(f"Chyba při pořizování screenshotu: {e}")
