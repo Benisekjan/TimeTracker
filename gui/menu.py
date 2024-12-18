@@ -1,14 +1,31 @@
-from PyQt5.QtWidgets import QMainWindow, QAction, QVBoxLayout, QTableWidget, QTableWidgetItem, QMenu, QSystemTrayIcon, QApplication, QWidget
+from PyQt5.QtWidgets import QMainWindow, QAction, QVBoxLayout, QTableWidget, QTableWidgetItem, QMenu, QSystemTrayIcon, QApplication, QWidget, QDialog
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QTimer, QDateTime
 import psutil
 import time
 from utils.activity_tracker import ActivityTracker  # Import ActivityTracker
 from utils.screenshot import ScreenshotTaker  # Import ScreenshotTaker
+from gui.settings import SettingsDialog
+from gui.settings_manager import SettingsManager
+
+
 
 class Menu(QMainWindow):
     def __init__(self):
         super().__init__()
+        
+        # Načtení nastavení
+        self.settings = SettingsManager.load_settings()
+
+        # Nastavení timerů podle uložených hodnot
+        self.update_timer = QTimer(self)
+        self.update_timer.timeout.connect(self.update_process_info)
+        self.update_timer.start(self.settings["tracking_interval"] * 1000)
+
+        self.screenshot_timer = QTimer(self)
+        self.screenshot_timer.timeout.connect(self.take_screenshot)
+        self.screenshot_timer.start(self.settings["screenshot_interval"] * 60000)
+        
         self.initUI()
 
         # Vytvoření instance ActivityTracker pro sledování aktivního okna
@@ -23,13 +40,13 @@ class Menu(QMainWindow):
         # Nastavení časovače pro aktualizaci každou sekundu
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.update_process_info)
-        self.update_timer.start(1000)
+        self.update_timer.start(1000)  # Výchozí: 1 sekunda
 
         # Instance ScreenshotTaker a nastavení časovače pro screenshoty
         self.screenshot_taker = ScreenshotTaker()  # Třída z utils/screenshot.py
         self.screenshot_timer = QTimer(self)
         self.screenshot_timer.timeout.connect(self.take_screenshot)
-        self.screenshot_timer.start(300000)  # 1000 ms = 1 sekund
+        self.screenshot_timer.start(300000)  # Výchozí: 5 minut
 
     def initUI(self):
         # Ikona pro tray a menu
@@ -44,6 +61,11 @@ class Menu(QMainWindow):
         exitAct = QAction("Ukončit", self)  # Akce pro ukončení aplikace
         exitAct.triggered.connect(self.exit_app)
         tray_menu.addAction(exitAct)
+        
+        settingsAct = QAction("Nastavení", self)  # Akce pro otevření nastavení
+        settingsAct.triggered.connect(self.open_settings)
+        tray_menu.addAction(settingsAct)
+
 
         self.tray_icon.setContextMenu(tray_menu)  # Nastavení menu pro tray ikonu
         self.tray_icon.show()  # Zobrazení tray ikony
@@ -64,6 +86,34 @@ class Menu(QMainWindow):
 
         self.setWindowTitle("Sledování aktivit oken")  # Nastavení názvu okna
         self.resize(800, 600)  # Nastavení velikosti okna
+
+
+    def open_settings(self):
+        dialog = SettingsDialog(
+            parent=self,
+            tracking_interval=self.update_timer.interval() // 1000,
+            screenshot_interval=self.screenshot_timer.interval() // 60000
+        )
+
+        if dialog.exec_() == QDialog.Accepted:
+            settings = dialog.get_settings()
+
+            # Aktualizace timerů: Nejprve zastavíme, změníme interval a znovu spustíme
+            self.update_timer.stop()
+            self.update_timer.setInterval(settings["tracking_interval"] * 1000)
+            self.update_timer.start()
+
+            self.screenshot_timer.stop()
+            self.screenshot_timer.setInterval(settings["screenshot_interval"] * 60000)
+            self.screenshot_timer.start()
+
+            # Uložení nového nastavení do souboru
+            self.settings.update(settings)
+            SettingsManager.save_settings(self.settings)
+
+            print(f"Nové nastavení: Sledování každých {settings['tracking_interval']} sekund, "
+                f"screenshoty každých {settings['screenshot_interval']} minut")
+
 
     def take_screenshot(self):
         try:
