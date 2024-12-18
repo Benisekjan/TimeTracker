@@ -15,7 +15,7 @@ Umožňuje:
 
 Sledování aktivních oken – Aplikace zaznamenává, které okno je v daném okamžiku aktivní, a sleduje dobu jeho aktivace.
 Zobrazení tabulky s informacemi o procesech – V reálném čase zobrazuje seznam běžících procesů, včetně jejich využití CPU, RAM, a PID, seřazený podle různých kritérií.
-Pořízení screenshotů – Aplikace pravidelně pořizuje screenshoty (každých 10 sekund) a ukládá je do specifikované složky, což umožňuje sledování aktivity na obrazovce.
+Pořízení screenshotů – Aplikace pravidelně pořizuje screenshoty a ukládá je do specifikované složky, což umožňuje sledování aktivity na obrazovce.
 
 
 Hlavní součásti aplikace zahrnují:
