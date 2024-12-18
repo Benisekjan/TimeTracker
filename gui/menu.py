@@ -29,7 +29,7 @@ class Menu(QMainWindow):
         self.screenshot_taker = ScreenshotTaker()  # Třída z utils/screenshot.py
         self.screenshot_timer = QTimer(self)
         self.screenshot_timer.timeout.connect(self.take_screenshot)
-        self.screenshot_timer.start(10000)  # 10000 ms = 10 sekund
+        self.screenshot_timer.start(300000)  # 1000 ms = 1 sekund
 
     def initUI(self):
         # Ikona pro tray a menu
