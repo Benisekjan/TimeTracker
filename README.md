@@ -25,3 +25,10 @@ Pořizování screenshotů pomocí modulu ScreenshotTaker.
 Zobrazení informací o procesech v hlavním okně pomocí PyQt5.
 Minimalizace na pozadí a správa aplikace prostřednictvím ikony v systémové liště.
 Aplikace je postavena na PyQt5 a využívá knihovny pro sledování systémových procesů (psutil), pořizování screenshotů (pyscreenshot), a práci s notifikacemi v macOS (AppKit, Foundation).
+
+
+Manuál:
+git clone https://github.com/Benisekjan/TimeTracker
+python -m venv .env
+pip install requirements.txt 
+python main.py
