@@ -1,12 +1,13 @@
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QSpinBox, QPushButton
 
 class SettingsDialog(QDialog):
-    def __init__(self, parent=None, tracking_interval=1, screenshot_interval=5):
+    def __init__(self, parent=None, tracking_interval=1, screenshot_interval=5, csv_interval=5):
         super().__init__(parent)
         self.setWindowTitle("Nastavení")
         self.setModal(True)
         self.tracking_interval = tracking_interval
         self.screenshot_interval = screenshot_interval
+        self.csv_interval = csv_interval
 
         layout = QVBoxLayout(self)
 
@@ -28,6 +29,16 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.screenshot_label)
         layout.addWidget(self.screenshot_spinbox)
 
+        # Pole pro nastavení intervalu pořizování screenshotů
+        self.csv_label = QLabel("Interval logů do csv (v minutách):")
+        self.csv_spinbox = QSpinBox()
+        self.csv_spinbox.setRange(1, 60)
+        self.csv_spinbox.setValue(self.csv_interval)
+
+        layout.addWidget(self.csv_label)
+        layout.addWidget(self.csv_spinbox)
+
+
         # Tlačítka pro uložení nebo zrušení
         self.save_button = QPushButton("Uložit")
         self.save_button.clicked.connect(self.accept)
@@ -41,5 +52,6 @@ class SettingsDialog(QDialog):
         # Vrací nová nastavení
         return {
             "tracking_interval": self.tracking_spinbox.value(),
-            "screenshot_interval": self.screenshot_spinbox.value()
+            "screenshot_interval": self.screenshot_spinbox.value(),
+            "csv_interval": self.csv_spinbox.value()
         }

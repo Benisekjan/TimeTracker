@@ -6,8 +6,8 @@ import time
 from utils.activity_tracker import ActivityTracker  # Import ActivityTracker
 from utils.screenshot import ScreenshotTaker  # Import ScreenshotTaker
 from gui.settings import SettingsDialog
-
-
+import os
+import csv
 
 
 class Menu(QMainWindow):
@@ -35,6 +35,14 @@ class Menu(QMainWindow):
         self.screenshot_timer = QTimer(self)
         self.screenshot_timer.timeout.connect(self.take_screenshot)
         self.screenshot_timer.start(300000)  # Výchozí: 5 minut
+        
+        self.target_directory = "/tmp"  # Zde změňte na požadovanou složku
+        
+        # CSV soubor a časovač pro zápis každých 5 minut
+        self.csv_file = os.path.join(self.target_directory, "activity_log.csv")
+        self.csv_timer = QTimer(self)
+        self.csv_timer.timeout.connect(self.write_to_csv)
+        self.csv_timer.start(300000)  # 5 minut
 
     def initUI(self):
 
@@ -81,7 +89,8 @@ class Menu(QMainWindow):
         dialog = SettingsDialog(
             parent=self,
             tracking_interval=self.update_timer.interval() // 1000,
-            screenshot_interval=self.screenshot_timer.interval() // 60000
+            screenshot_interval=self.screenshot_timer.interval() // 60000,
+            csv_interval=self.csv_timer.interval() // 60000
         )
 
         if dialog.exec_() == QDialog.Accepted:
@@ -90,9 +99,11 @@ class Menu(QMainWindow):
             # Aktualizace časovačů na základě uživatelských nastavení
             self.update_timer.setInterval(settings["tracking_interval"] * 1000)
             self.screenshot_timer.setInterval(settings["screenshot_interval"] * 60000)
+            self.csv_timer.setInterval(settings["csv_interval"] * 60000)
 
             print(f"Nové nastavení: Sledování každých {settings['tracking_interval']} sekund, "
-                f"screenshoty každých {settings['screenshot_interval']} minut")
+                f"screenshoty každých {settings['screenshot_interval']} minut, "
+                f"csv každých {settings['csv_interval']} minut")
 
 
     def take_screenshot(self):
@@ -120,7 +131,56 @@ class Menu(QMainWindow):
             QSystemTrayIcon.Information,
             2000
         )
+    def write_to_csv(self):
+        # Připravení dat pro zápis do CSV
+        active_data = [
+            (window, data['total_duration'])
+            for window, data in self.window_data.items()
+            if data['total_duration'] > 0  # Pouze aplikace s aktivitou
+        ]
 
+        if not active_data:
+            return  # Žádná data k zápisu
+
+        # Pokud soubor neexistuje, vytvoříme ho s hlavičkou
+        file_exists = os.path.isfile(self.csv_file)
+
+        # Načteme existující hodnoty z CSV souboru
+        current_values = self.read_csv()
+
+        # Otevřeme CSV pro zápis
+        with open(self.csv_file, mode='w', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+
+            # Pokud soubor ještě neexistuje, přidáme hlavičku
+            if not file_exists:
+                writer.writerow(["Aplikace", "Čas (s)"])  # Hlavička CSV
+
+            # Uložení všech aktivních dat do CSV
+            for window, duration in active_data:
+                updated_duration = current_values.get(window, 0.0) + duration  # Sečteme s existujícími hodnotami
+                updated_duration = round(updated_duration)  # Zaokrouhlíme na celé číslo
+
+                writer.writerow([window, updated_duration])
+
+        print(f"Data zapsána do {self.csv_file}")
+    
+    
+    
+    def read_csv(self):
+        # Načtení aktuálních hodnot z CSV
+        if not os.path.isfile(self.csv_file):
+            return {}
+
+        current_data = {}
+        with open(self.csv_file, mode='r', newline='', encoding='utf-8') as file:
+            reader = csv.reader(file)
+            next(reader, None)  # Přeskočení hlavičky
+            for row in reader:
+                if len(row) == 2:
+                    current_data[row[0]] = float(row[1])
+        return current_data    
+    
     def on_window_changed(self, window_name):
         # Tato metoda se spustí při změně aktivního okna
         current_time = time.time()
@@ -150,6 +210,7 @@ class Menu(QMainWindow):
 
         # Aktualizujeme tabulku
         self.update_process_info()
+        
     def update_process_info(self):
         # Zakáže řazení během aktualizace, aby nedošlo k nekonzistencím
         self.table_widget.setSortingEnabled(False)
