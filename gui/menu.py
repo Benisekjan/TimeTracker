@@ -6,26 +6,13 @@ import time
 from utils.activity_tracker import ActivityTracker  # Import ActivityTracker
 from utils.screenshot import ScreenshotTaker  # Import ScreenshotTaker
 from gui.settings import SettingsDialog
-from gui.settings_manager import SettingsManager
+
 
 
 
 class Menu(QMainWindow):
     def __init__(self):
         super().__init__()
-        
-        # Načtení nastavení
-        self.settings = SettingsManager.load_settings()
-
-        # Nastavení timerů podle uložených hodnot
-        self.update_timer = QTimer(self)
-        self.update_timer.timeout.connect(self.update_process_info)
-        self.update_timer.start(self.settings["tracking_interval"] * 1000)
-
-        self.screenshot_timer = QTimer(self)
-        self.screenshot_timer.timeout.connect(self.take_screenshot)
-        self.screenshot_timer.start(self.settings["screenshot_interval"] * 60000)
-        
         self.initUI()
 
         # Vytvoření instance ActivityTracker pro sledování aktivního okna
@@ -42,6 +29,7 @@ class Menu(QMainWindow):
         self.update_timer.timeout.connect(self.update_process_info)
         self.update_timer.start(1000)  # Výchozí: 1 sekunda
 
+
         # Instance ScreenshotTaker a nastavení časovače pro screenshoty
         self.screenshot_taker = ScreenshotTaker()  # Třída z utils/screenshot.py
         self.screenshot_timer = QTimer(self)
@@ -49,9 +37,10 @@ class Menu(QMainWindow):
         self.screenshot_timer.start(300000)  # Výchozí: 5 minut
 
     def initUI(self):
+
         # Ikona pro tray a menu
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QIcon('icons/icon.png'))
+        self.tray_icon.setIcon(QIcon('icons/icon.icns'))
 
         tray_menu = QMenu()  # Vytvoření menu pro tray ikonu
         showAct = QAction("Zobrazit", self)  # Akce pro zobrazení okna
@@ -77,18 +66,18 @@ class Menu(QMainWindow):
         
         # Tabulka s informacemi o procesech
         self.table_widget = QTableWidget()
-        self.table_widget.setColumnCount(6)  # Počet sloupců upravený pro PID
+        self.table_widget.setColumnCount(7)  # Počet sloupců upravený pro PID
         self.table_widget.setHorizontalHeaderLabels([
             "Název okna", "Poslední aktivace", "Doba aktivace", 
-            "CPU", "RAM", "PID"
+            "CPU", "RAM", "PID", "Uživatel"
         ])
         layout.addWidget(self.table_widget)
 
         self.setWindowTitle("Sledování aktivit oken")  # Nastavení názvu okna
         self.resize(800, 600)  # Nastavení velikosti okna
 
-
     def open_settings(self):
+        # Otevře dialog nastavení
         dialog = SettingsDialog(
             parent=self,
             tracking_interval=self.update_timer.interval() // 1000,
@@ -98,18 +87,9 @@ class Menu(QMainWindow):
         if dialog.exec_() == QDialog.Accepted:
             settings = dialog.get_settings()
 
-            # Aktualizace timerů: Nejprve zastavíme, změníme interval a znovu spustíme
-            self.update_timer.stop()
+            # Aktualizace časovačů na základě uživatelských nastavení
             self.update_timer.setInterval(settings["tracking_interval"] * 1000)
-            self.update_timer.start()
-
-            self.screenshot_timer.stop()
             self.screenshot_timer.setInterval(settings["screenshot_interval"] * 60000)
-            self.screenshot_timer.start()
-
-            # Uložení nového nastavení do souboru
-            self.settings.update(settings)
-            SettingsManager.save_settings(self.settings)
 
             print(f"Nové nastavení: Sledování každých {settings['tracking_interval']} sekund, "
                 f"screenshoty každých {settings['screenshot_interval']} minut")
@@ -170,19 +150,19 @@ class Menu(QMainWindow):
 
         # Aktualizujeme tabulku
         self.update_process_info()
-
     def update_process_info(self):
         # Zakáže řazení během aktualizace, aby nedošlo k nekonzistencím
         self.table_widget.setSortingEnabled(False)
         self.table_widget.setRowCount(0)  # Vymaže stávající řádky
         processes = {}
 
-        for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
+        for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent', 'username']):
             try:
                 pid = p.info['pid']
                 process_name = p.info['name']
                 cpu_usage = p.info['cpu_percent']
                 ram_usage = p.info['memory_percent']
+                username = p.info['username'] or "Unknown"  # Získání uživatele
 
                 if self.is_user_process(pid, process_name) and cpu_usage is not None and ram_usage is not None:
                     ram_usage = round(ram_usage, 2)
@@ -195,7 +175,8 @@ class Menu(QMainWindow):
                             'name': process_name,
                             'cpu_percent': cpu_usage,
                             'memory_percent': ram_usage,
-                            'pid': pid
+                            'pid': pid,
+                            'username': username  # Uložení uživatele
                         }
 
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
@@ -223,6 +204,7 @@ class Menu(QMainWindow):
             self.table_widget.setItem(row_position, 3, QTableWidgetItem(f"{process_info['cpu_percent']}%"))
             self.table_widget.setItem(row_position, 4, QTableWidgetItem(f"{process_info['memory_percent']}%"))
             self.table_widget.setItem(row_position, 5, QTableWidgetItem(str(process_info['pid'])))
+            self.table_widget.setItem(row_position, 6, QTableWidgetItem(process_info['username']))  # Nový sloupec
 
         # Povolí řazení po aktualizaci tabulky
         self.table_widget.setSortingEnabled(True)
@@ -230,19 +212,23 @@ class Menu(QMainWindow):
     def is_user_process(self, pid, process_name):
         # Seznam systémových procesů, které chceme ignorovat
         system_processes = [
-                'kernel_task', 'launchd', 'syslogd', 'hidd', 'WindowServer', 'timed', 'usbmuxd', 'locationd',
-                'UserEventAgent', 'universalaccessd', 'pboard', 'talagentd', 'ControlCenter', 'SystemUIServer',
-                'distnoted', 'nsurlsessiond', 'mdnsresponder', 'appleeventsd', 'coreaudiod', 'symptomsd',
-                'airportd', 'configd', 'sandboxd', 'iconservicesagent', 'fileproviderd', 'diskarbitrationd',
-                'securityd', 'spindump', 'spotlightd', 'sysmond', 'analyticsd', 'trustd'
-            ]
+            'kernel_task', 'launchd', 'syslogd', 'hidd', 'WindowServer', 'timed', 'usbmuxd', 'locationd',
+            'UserEventAgent', 'universalaccessd', 'pboard', 'talagentd', 'ControlCenter', 'SystemUIServer',
+            'distnoted', 'nsurlsessiond', 'mdnsresponder', 'appleeventsd', 'coreaudiod', 'symptomsd',
+            'airportd', 'configd', 'sandboxd', 'iconservicesagent', 'fileproviderd', 'diskarbitrationd',
+            'securityd', 'spindump', 'spotlightd', 'sysmond', 'analyticsd', 'trustd'
+        ]
         if process_name.lower() in system_processes:
             return False
 
         try:
             proc = psutil.Process(pid)
-            if proc.username() == 'root' or proc.status() == psutil.STATUS_ZOMBIE or not proc.is_running():
+            # Ignorování procesů se statusem ZOMBIE nebo neběžících
+            if proc.status() == psutil.STATUS_ZOMBIE or not proc.is_running():
                 return False
-        except psutil.AccessDenied:
+
+        except (psutil.AccessDenied, psutil.NoSuchProcess):
+            # Přístup odepřen nebo proces již neexistuje
             return False
+
         return True

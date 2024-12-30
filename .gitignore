@@ -2,3 +2,6 @@
 .venv
 .env/
 .DS_Store
+dist
+build
+TimeTracker.spec
