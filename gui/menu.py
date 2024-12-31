@@ -90,7 +90,9 @@ class Menu(QMainWindow):
             parent=self,
             tracking_interval=self.update_timer.interval() // 1000,
             screenshot_interval=self.screenshot_timer.interval() // 60000,
-            csv_interval=self.csv_timer.interval() // 60000
+            csv_interval=self.csv_timer.interval() // 60000,
+            screenshot_path=self.target_directory,
+            csv_path=os.path.dirname(self.csv_file)
         )
 
         if dialog.exec_() == QDialog.Accepted:
@@ -100,6 +102,10 @@ class Menu(QMainWindow):
             self.update_timer.setInterval(settings["tracking_interval"] * 1000)
             self.screenshot_timer.setInterval(settings["screenshot_interval"] * 60000)
             self.csv_timer.setInterval(settings["csv_interval"] * 60000)
+
+            # Aktualizace cest
+            self.target_directory = settings["screenshot_path"]
+            self.csv_file = os.path.join(settings["csv_path"], "activity_log.csv")
 
             print(f"Nové nastavení: Sledování každých {settings['tracking_interval']} sekund, "
                 f"screenshoty každých {settings['screenshot_interval']} minut, "
