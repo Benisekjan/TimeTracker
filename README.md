@@ -28,7 +28,11 @@ Aplikace je postavena na PyQt5 a využívá knihovny pro sledování systémový
 
 
 Manuál:
+
 git clone https://github.com/Benisekjan/TimeTracker
+
 python -m venv .env
+
 pip install requirements.txt 
+
 python main.py
