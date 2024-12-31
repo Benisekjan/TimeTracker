@@ -23,7 +23,8 @@ class ActivityTracker(QObject):
     def applicationActivated_(self, notification):
         # Získání jména aktuálního aktivního okna
         active_app = self.workspace.frontmostApplication()
-        window_name = active_app.localizedName() if active_app else "Unknown"  # Pokud není okno rozpoznáno, nastaví "Unknown"
+        window_name = active_app.localizedName() if active_app else "Unknown"  
+        # Pokud není okno rozpoznáno, nastaví "Unknown"
         
         # Vyvolá signál, jen pokud se změnilo aktivní okno
         if window_name != self.current_window:

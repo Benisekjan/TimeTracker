@@ -1,6 +1,10 @@
 from PyQt5.QtWidgets import QApplication
 from gui.menu import Menu  # Import hlavní třídy okna z modulu menu
 import sys
+from setproctitle import setproctitle  
+
+title = "TimeTracker"
+setproctitle(title)
 
 def main():
     # Vytvoření instance aplikace PyQt
