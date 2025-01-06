@@ -36,7 +36,7 @@ class Menu(QMainWindow):
         self.screenshot_timer.timeout.connect(self.take_screenshot)
         self.screenshot_timer.start(300000)  # Výchozí: 5 minut
         
-        self.target_directory = "/tmp"  # Zde změňte na požadovanou složku
+        self.target_directory = "/tmp"  
         
         # CSV soubor a časovač pro zápis každých 5 minut
         self.csv_file = os.path.join(self.target_directory, "activity_log.csv")
@@ -225,10 +225,10 @@ class Menu(QMainWindow):
 
         for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent', 'username']):
             try:
-                pid = p.info['pid']
-                process_name = p.info['name']
-                cpu_usage = p.info['cpu_percent']
-                ram_usage = p.info['memory_percent']
+                pid = p.info['pid'] # Získání ID procesu
+                process_name = p.info['name'] # Získání názvu procesu
+                cpu_usage = p.info['cpu_percent'] # Získání procent využití CPU
+                ram_usage = p.info['memory_percent'] # Získání procent využití RAM
                 username = p.info['username'] or "Unknown"  # Získání uživatele
 
                 if self.is_user_process(pid, process_name) and cpu_usage is not None and ram_usage is not None:
@@ -239,10 +239,10 @@ class Menu(QMainWindow):
                         processes[process_name]['memory_percent'] += ram_usage
                     else:
                         processes[process_name] = {
-                            'name': process_name,
-                            'cpu_percent': cpu_usage,
-                            'memory_percent': ram_usage,
-                            'pid': pid,
+                            'name': process_name, # Uložení názvu 
+                            'cpu_percent': cpu_usage, # Uložení procent CPU
+                            'memory_percent': ram_usage, # Uložení procent RAM
+                            'pid': pid, # Uložení ID uživatele
                             'username': username  # Uložení uživatele
                         }
 
@@ -271,7 +271,7 @@ class Menu(QMainWindow):
             self.table_widget.setItem(row_position, 3, QTableWidgetItem(f"{process_info['cpu_percent']}%"))
             self.table_widget.setItem(row_position, 4, QTableWidgetItem(f"{process_info['memory_percent']}%"))
             self.table_widget.setItem(row_position, 5, QTableWidgetItem(str(process_info['pid'])))
-            self.table_widget.setItem(row_position, 6, QTableWidgetItem(process_info['username']))  # Nový sloupec
+            self.table_widget.setItem(row_position, 6, QTableWidgetItem(process_info['username'])) 
 
         # Povolí řazení po aktualizaci tabulky
         self.table_widget.setSortingEnabled(True)
