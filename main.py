@@ -1,4 +1,5 @@
 from PyQt5.QtWidgets import QApplication, QMessageBox
+from PyQt5.QtGui import QIcon
 from gui.menu import Menu  # Import hlavní třídy okna z modulu menu
 import sys
 import os
@@ -8,6 +9,9 @@ from setproctitle import setproctitle
 
 title = "TimeTracker"
 setproctitle(title)
+
+# Cesta k souboru s ikonou aplikace
+icon_path = os.path.join(os.path.dirname(__file__), 'icons', 'icon.icns')
 
 # Cesta k souboru, který bude uchovávat informace o nastavení
 settings_file = Path.home() / '.timetracker_settings'
@@ -35,23 +39,28 @@ def create_launch_agent():
 
 # Funkce pro zobrazení dotazu na automatické spuštění
 def ask_user(app):
-    # Pokud soubor nastavení neexistuje (první spuštění), zeptáme uživatele
-    if not settings_file.exists():
+    plist_path = Path.home() / 'Library/LaunchAgents/com.timetracker.startup.plist'
+    
+    # Pokud `.plist` neexistuje, zobrazit dotaz
+    if not plist_path.exists():
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Question)
         msg.setText("Chcete, aby se aplikace TimeTracker spouštěla při startu systému?")
         msg.setWindowTitle("Automatické spuštění")
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
 
-        # Zobrazení dialogu a získání odpovědi
+        # Nastavit ikonu dialogu
+        icon = QIcon(icon_path)
+        msg.setIconPixmap(icon.pixmap(64, 64))
+
+        # Získat odpověď uživatele
         answer = msg.exec_()
 
         if answer == QMessageBox.Yes:
             create_launch_agent()
-
-        # Uložení informací, že uživatel odpověděl na tuto otázku
-        with open(settings_file, 'w') as f:
-            f.write('setup_completed')  # Indikace, že uživatel souhlasil s nastavením
+            print("Uživatel zvolil automatické spuštění.")
+        else:
+            print("Uživatel odmítl automatické spuštění.")
 
 def main():
     # Vytvoření instance aplikace PyQt
