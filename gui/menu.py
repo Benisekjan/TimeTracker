@@ -8,7 +8,7 @@ from utils.screenshot import ScreenshotManager  # Import třídy pro správu scr
 from gui.settings import SettingsDialog  # Dialog pro uživatelské nastavení
 import os  # Práce se soubory a složkami
 import csv  # Práce s CSV soubory
-
+import sys  # Knihovna pro práci se systémem
 
 class Menu(QMainWindow):  # Třída hlavního okna aplikace
     def __init__(self):
@@ -46,9 +46,16 @@ class Menu(QMainWindow):  # Třída hlavního okna aplikace
         self.csv_timer.start(300000)  # Spuštění každých 5 minut (300 000 ms)
 
     def initUI(self):  # Inicializace uživatelského rozhraní
+        
+        # Nastavení cesty k ikoně
+        if hasattr(sys, "_MEIPASS"):  # Kontrola, zda běžíme v zabalené aplikaci
+            icon_path = os.path.join(sys._MEIPASS, 'icons', 'icon.icns')
+        else:  # Pokud aplikace běží ze zdrojového kódu
+            icon_path = 'icons/icon.icns'
+        
         # Ikona pro tray a menu
         self.tray_icon = QSystemTrayIcon(self)  # Ikona aplikace v systémové liště
-        self.tray_icon.setIcon(QIcon('icons/icon.icns'))  # Nastavení ikony pro aplikaci
+        self.tray_icon.setIcon(QIcon(icon_path)) # Nastavení ikony pro aplikaci
 
         tray_menu = QMenu()  # Vytvoření menu pro tray ikonu
         showAct = QAction("Zobrazit", self)  # Akce pro zobrazení hlavního okna
