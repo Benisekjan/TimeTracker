@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMainWindow, QAction, QVBoxLayout, QTableWidget, QTableWidgetItem, QMenu, QSystemTrayIcon, QApplication, QWidget, QDialog
+from PyQt5.QtWidgets import QMainWindow, QAction, QVBoxLayout, QTableWidget, QTableWidgetItem, QMenu, QSystemTrayIcon, QApplication, QWidget, QDialog, QLineEdit
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QTimer, QDateTime
 import psutil  # Knihovna pro práci s procesy a systémovými informacemi
@@ -14,6 +14,9 @@ class Menu(QMainWindow):  # Třída hlavního okna aplikace
     def __init__(self):
         super().__init__()
         self.initUI()  # Inicializace uživatelského rozhraní
+
+        # Přidáme atribut pro hledaný text
+        self.search_text = ""
 
         # Inicializace ScreenshotManager a výchozích složek
         self.screenshot_manager = ScreenshotManager()  # Správce screenshotů
@@ -78,6 +81,11 @@ class Menu(QMainWindow):  # Třída hlavního okna aplikace
         self.setCentralWidget(central_widget)  # Nastavení centrálního widgetu
         layout = QVBoxLayout(central_widget)  # Layout pro central_widget
         
+        self.search_box = QLineEdit(self)
+        self.search_box.setPlaceholderText("Vyhledat proces...")
+        self.search_box.textChanged.connect(self.filter_table)  # Připojení filtrační funkce
+        layout.addWidget(self.search_box)  # Přidání vyhledávacího pole nad tabulku
+        
         # Tabulka s informacemi o procesech
         self.table_widget = QTableWidget()  # Tabulka pro zobrazení dat
         self.table_widget.setColumnCount(7)  # Nastavení počtu sloupců
@@ -89,6 +97,17 @@ class Menu(QMainWindow):  # Třída hlavního okna aplikace
 
         self.setWindowTitle("Sledování aktivit oken")  # Nastavení názvu hlavního okna
         self.resize(800, 600)  # Nastavení velikosti okna
+
+    def filter_table(self):  # Metoda pro filtrování tabulky
+        filter_text = self.search_box.text().lower()  # Načte text z vyhledávacího pole a převede na malá písmena
+        for row in range(self.table_widget.rowCount()):  # Projde všechny řádky tabulky
+            match = False  # Inicializuje proměnnou pro kontrolu shody
+            for column in range(self.table_widget.columnCount()):  # Projde všechny sloupce v aktuálním řádku
+                item = self.table_widget.item(row, column)  # Načte položku v aktuálním řádku a sloupci
+                if item and filter_text in item.text().lower():  # Pokud položka existuje a obsahuje text z vyhledávání
+                    match = True  # Nastaví shodu na True
+                    break  # Přeruší cyklus, protože shoda byla nalezena
+            self.table_widget.setRowHidden(row, not match)  # Skryje nebo zobrazí řádek podle výsledku shody
 
     def open_settings(self):  # Metoda pro otevření dialogu nastavení
         dialog = SettingsDialog(  # Vytvoření dialogu pro nastavení
@@ -232,6 +251,9 @@ class Menu(QMainWindow):  # Třída hlavního okna aplikace
                 ram_usage = p.info['memory_percent'] # Získání procent využití RAM
                 username = p.info['username'] or "Unknown"  # Získání uživatele
 
+                # Uložení aktuálního textu z vyhledávacího pole
+                filter_text = self.search_box.text().lower()
+
                 if self.is_user_process(pid, process_name) and cpu_usage is not None and ram_usage is not None:
                     ram_usage = round(ram_usage, 2)
 
@@ -273,6 +295,10 @@ class Menu(QMainWindow):  # Třída hlavního okna aplikace
             self.table_widget.setItem(row_position, 4, QTableWidgetItem(f"{process_info['memory_percent']}%"))
             self.table_widget.setItem(row_position, 5, QTableWidgetItem(str(process_info['pid'])))
             self.table_widget.setItem(row_position, 6, QTableWidgetItem(process_info['username'])) 
+
+        # Obnovení filtru podle aktuálního textu ve vyhledávacím poli
+        self.search_box.setText(filter_text)  # Obnoví text ve vyhledávacím poli
+        self.filter_table()  # Znovu použije filtrační funkci
 
         # Povolí řazení po aktualizaci tabulky
         self.table_widget.setSortingEnabled(True)
