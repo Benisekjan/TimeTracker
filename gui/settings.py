@@ -90,4 +90,3 @@ class SettingsDialog(QDialog):
             "screenshot_path": self.screenshot_path_edit.text(),
             "csv_path": self.csv_path_edit.text()
         }
-
