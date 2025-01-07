@@ -1,191 +1,185 @@
 from PyQt5.QtWidgets import QMainWindow, QAction, QVBoxLayout, QTableWidget, QTableWidgetItem, QMenu, QSystemTrayIcon, QApplication, QWidget, QDialog
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QTimer, QDateTime
-import psutil
-import time
-from utils.activity_tracker import ActivityTracker  # Import ActivityTracker
-from utils.screenshot import ScreenshotTaker  # Import ScreenshotTaker
-from gui.settings import SettingsDialog
-import os
-import csv
+import psutil  # Knihovna pro práci s procesy a systémovými informacemi
+import time  # Knihovna pro práci s časem
+from utils.activity_tracker import ActivityTracker  # Import třídy pro sledování aktivit
+from utils.screenshot import ScreenshotManager  # Import třídy pro správu screenshotů
+from gui.settings import SettingsDialog  # Dialog pro uživatelské nastavení
+import os  # Práce se soubory a složkami
+import csv  # Práce s CSV soubory
 
 
-class Menu(QMainWindow):
+class Menu(QMainWindow):  # Třída hlavního okna aplikace
     def __init__(self):
         super().__init__()
-        self.initUI()
+        self.initUI()  # Inicializace uživatelského rozhraní
 
-        # Vytvoření instance ActivityTracker pro sledování aktivního okna
-        self.activity_tracker = ActivityTracker()
-        self.activity_tracker.windowChanged.connect(self.on_window_changed)
+        # Inicializace ScreenshotManager a výchozích složek
+        self.screenshot_manager = ScreenshotManager()  # Správce screenshotů
+        self.screenshot_directory = self.screenshot_manager.screenshot_directory  # Výchozí složka screenshotů
+        self.csv_directory = "/tmp/csv_logs"  # Výchozí složka pro CSV logy
+        os.makedirs(self.csv_directory, exist_ok=True)  # Vytvoření složky pro CSV, pokud neexistuje
 
-        # Slovník pro uchování časů aktivace a kumulované doby aktivace
-        self.window_data = {}
-        self.active_window = None
-        self.active_start_time = None
+        # Inicializace CSV souboru
+        self.csv_file = os.path.join(self.csv_directory, "activity_log.csv")  # Cesta k CSV souboru
 
-        # Nastavení časovače pro aktualizaci každou sekundu
-        self.update_timer = QTimer(self)
-        self.update_timer.timeout.connect(self.update_process_info)
-        self.update_timer.start(1000)  # Výchozí: 1 sekunda
+        # Inicializace sledování aktivit
+        self.activity_tracker = ActivityTracker()  # Objekt pro sledování změn oken
+        self.activity_tracker.windowChanged.connect(self.on_window_changed)  # Připojení signálu ke změně aktivního okna
 
+        self.window_data = {}  # Slovník pro ukládání dat o oknech
+        self.active_window = None  # Aktuálně aktivní okno
+        self.active_start_time = None  # Čas, kdy bylo okno aktivováno
 
-        # Instance ScreenshotTaker a nastavení časovače pro screenshoty
-        self.screenshot_taker = ScreenshotTaker()  # Třída z utils/screenshot.py
-        self.screenshot_timer = QTimer(self)
-        self.screenshot_timer.timeout.connect(self.take_screenshot)
-        self.screenshot_timer.start(300000)  # Výchozí: 5 minut
-        
-        self.target_directory = "/tmp"  
-        
-        # CSV soubor a časovač pro zápis každých 5 minut
-        self.csv_file = os.path.join(self.target_directory, "activity_log.csv")
-        self.csv_timer = QTimer(self)
-        self.csv_timer.timeout.connect(self.write_to_csv)
-        self.csv_timer.start(300000)  # 5 minut
+        # Nastavení časovačů
+        self.update_timer = QTimer(self)  # Časovač pro aktualizaci informací o procesech
+        self.update_timer.timeout.connect(self.update_process_info)  # Připojení časovače k metodě aktualizace
+        self.update_timer.start(1000)  # Spuštění časovače každou sekundu
 
-    def initUI(self):
+        self.screenshot_timer = QTimer(self)  # Časovač pro pořizování screenshotů
+        self.screenshot_timer.timeout.connect(self.take_screenshot)  # Připojení k metodě pořizování screenshotů
+        self.screenshot_timer.start(300000)  # Spuštění každých 5 minut (300 000 ms)
 
+        self.csv_timer = QTimer(self)  # Časovač pro zápis do CSV
+        self.csv_timer.timeout.connect(self.write_to_csv)  # Připojení k metodě zápisu do CSV
+        self.csv_timer.start(300000)  # Spuštění každých 5 minut (300 000 ms)
+
+    def initUI(self):  # Inicializace uživatelského rozhraní
         # Ikona pro tray a menu
-        self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QIcon('icons/icon.icns'))
+        self.tray_icon = QSystemTrayIcon(self)  # Ikona aplikace v systémové liště
+        self.tray_icon.setIcon(QIcon('icons/icon.icns'))  # Nastavení ikony pro aplikaci
 
         tray_menu = QMenu()  # Vytvoření menu pro tray ikonu
-        showAct = QAction("Zobrazit", self)  # Akce pro zobrazení okna
-        showAct.triggered.connect(self.show_window)
-        tray_menu.addAction(showAct)
+        showAct = QAction("Zobrazit", self)  # Akce pro zobrazení hlavního okna
+        showAct.triggered.connect(self.show_window)  # Připojení akce k metodě zobrazení okna
+        tray_menu.addAction(showAct)  # Přidání akce do menu
 
         exitAct = QAction("Ukončit", self)  # Akce pro ukončení aplikace
-        exitAct.triggered.connect(self.exit_app)
-        tray_menu.addAction(exitAct)
+        exitAct.triggered.connect(self.exit_app)  # Připojení akce k metodě ukončení aplikace
+        tray_menu.addAction(exitAct)  # Přidání akce do menu
         
-        settingsAct = QAction("Nastavení", self)  # Akce pro otevření nastavení
-        settingsAct.triggered.connect(self.open_settings)
-        tray_menu.addAction(settingsAct)
-
+        settingsAct = QAction("Nastavení", self)  # Akce pro otevření dialogu nastavení
+        settingsAct.triggered.connect(self.open_settings)  # Připojení akce k metodě otevření dialogu
+        tray_menu.addAction(settingsAct)  # Přidání akce do menu
 
         self.tray_icon.setContextMenu(tray_menu)  # Nastavení menu pro tray ikonu
         self.tray_icon.show()  # Zobrazení tray ikony
 
         # Widget pro zobrazení tabulky s procesy
-        central_widget = QWidget(self)
-        self.setCentralWidget(central_widget)
-        layout = QVBoxLayout(central_widget)
+        central_widget = QWidget(self)  # Vytvoření centrálního widgetu pro hlavní okno
+        self.setCentralWidget(central_widget)  # Nastavení centrálního widgetu
+        layout = QVBoxLayout(central_widget)  # Layout pro central_widget
         
         # Tabulka s informacemi o procesech
-        self.table_widget = QTableWidget()
-        self.table_widget.setColumnCount(7)  # Počet sloupců upravený pro PID
+        self.table_widget = QTableWidget()  # Tabulka pro zobrazení dat
+        self.table_widget.setColumnCount(7)  # Nastavení počtu sloupců
         self.table_widget.setHorizontalHeaderLabels([
             "Název okna", "Poslední aktivace", "Doba aktivace", 
             "CPU", "RAM", "PID", "Uživatel"
-        ])
-        layout.addWidget(self.table_widget)
+        ])  # Hlavička tabulky
+        layout.addWidget(self.table_widget)  # Přidání tabulky do layoutu
 
-        self.setWindowTitle("Sledování aktivit oken")  # Nastavení názvu okna
+        self.setWindowTitle("Sledování aktivit oken")  # Nastavení názvu hlavního okna
         self.resize(800, 600)  # Nastavení velikosti okna
 
-    def open_settings(self):
-        # Otevře dialog nastavení
-        dialog = SettingsDialog(
-            parent=self,
-            tracking_interval=self.update_timer.interval() // 1000,
-            screenshot_interval=self.screenshot_timer.interval() // 60000,
-            csv_interval=self.csv_timer.interval() // 60000,
-            screenshot_path=self.target_directory,
-            csv_path=os.path.dirname(self.csv_file)
+    def open_settings(self):  # Metoda pro otevření dialogu nastavení
+        dialog = SettingsDialog(  # Vytvoření dialogu pro nastavení
+            parent=self,  # Rodičovské okno
+            tracking_interval=self.update_timer.interval() // 1000,  # Aktuální interval sledování (v sekundách)
+            screenshot_interval=self.screenshot_timer.interval() // 60000,  # Interval screenshotů (v minutách)
+            csv_interval=self.csv_timer.interval() // 60000,  # Interval CSV (v minutách)
+            screenshot_path=self.screenshot_directory,  # Výchozí složka screenshotů
+            csv_path=self.csv_directory  # Výchozí složka pro CSV
         )
 
-        if dialog.exec_() == QDialog.Accepted:
-            settings = dialog.get_settings()
+        if dialog.exec_() == QDialog.Accepted:  # Pokud uživatel potvrdil nastavení
+            settings = dialog.get_settings()  # Načtení nových nastavení
 
             # Aktualizace časovačů na základě uživatelských nastavení
-            self.update_timer.setInterval(settings["tracking_interval"] * 1000)
-            self.screenshot_timer.setInterval(settings["screenshot_interval"] * 60000)
-            self.csv_timer.setInterval(settings["csv_interval"] * 60000)
+            self.update_timer.setInterval(settings["tracking_interval"] * 1000)  # Aktualizace intervalu sledování
+            self.screenshot_timer.setInterval(settings["screenshot_interval"] * 60000)  # Aktualizace intervalu screenshotů
+            self.csv_timer.setInterval(settings["csv_interval"] * 60000)  # Aktualizace intervalu CSV
 
-            # Aktualizace cest
-            self.target_directory = settings["screenshot_path"]
-            self.csv_file = os.path.join(settings["csv_path"], "activity_log.csv")
+            # Aktualizace složek
+            self.screenshot_manager.set_screenshot_directory(settings["screenshot_path"])  # Nastavení nové složky pro screenshoty
+            self.screenshot_directory = settings["screenshot_path"]  # Aktualizace výchozí složky screenshotů
+            self.csv_directory = settings["csv_path"]  # Aktualizace výchozí složky pro CSV
 
+            # Výpis informací o nových nastaveních
             print(f"Nové nastavení: Sledování každých {settings['tracking_interval']} sekund, "
-                f"screenshoty každých {settings['screenshot_interval']} minut, "
-                f"csv každých {settings['csv_interval']} minut")
+                  f"screenshoty každých {settings['screenshot_interval']} minut do {self.screenshot_directory}, "
+                  f"CSV každých {settings['csv_interval']} minut do {self.csv_directory}")
 
 
     def take_screenshot(self):
+        # Pořídí screenshot pomocí ScreenshotManager
         try:
-            timestamp = QDateTime.currentDateTime().toString("yyyy.MM.dd-HH-mm-ss")
-            filename = f"/tmp/"
-            self.screenshot_taker.take_screenshot(filename)
+            self.screenshot_manager.take_screenshot()  # Zavolá metodu pro pořízení screenshotu
         except Exception as e:
-            print(f"Chyba při pořizování screenshotu: {e}")
+            print(f"Chyba při pořizování screenshotu: {e}")  # Vypíše chybu do konzole, pokud něco selže
             
     def exit_app(self):
-        QApplication.instance().quit()  # Ukončení aplikace
+        QApplication.instance().quit()  # Ukončí běžící instanci aplikace PyQt
 
     def show_window(self):
-        self.show()  # Zobrazení okna
-        self.raise_()  # Přenesení okna do popředí
-        self.activateWindow()  # Aktivace okna
+        self.show()  # Zobrazí hlavní okno aplikace
+        self.raise_()  # Přenese okno do popředí
+        self.activateWindow()  # Aktivuje okno
 
     def closeEvent(self, event):
-        event.ignore()  # Ignorování události zavření okna
-        self.hide()  # Skrytí okna
+        event.ignore()  # Ignoruje akci zavření okna
+        self.hide()  # Skryje okno místo jeho zavření
         self.tray_icon.showMessage(
-            "Aplikace minimalizována",
-            "TimeTracker běží na pozadí. Otevřete jej kliknutím na ikonu v systémové liště.",
-            QSystemTrayIcon.Information,
-            2000
+            "Aplikace minimalizována",  # Zpráva o minimalizaci
+            "TimeTracker běží na pozadí. Otevřete jej kliknutím na ikonu v systémové liště.",  # Detail zprávy
+            QSystemTrayIcon.Information,  # Typ zprávy
+            2000  # Délka zobrazení zprávy v milisekundách
         )
+        
     def write_to_csv(self):
-        # Připravení dat pro zápis do CSV
+        self.csv_file = os.path.join(self.csv_directory, "activity_log.csv")  # Nastaví cestu k CSV souboru
+
+        # Připraví data k zápisu do CSV
         active_data = [
-            (window, data['total_duration'])
+            (window, data['total_duration'])  # Každé okno a jeho celková doba aktivity
             for window, data in self.window_data.items()
-            if data['total_duration'] > 0  # Pouze aplikace s aktivitou
+            if data['total_duration'] > 0  # Pouze okna s nějakou aktivitou
         ]
 
         if not active_data:
-            return  # Žádná data k zápisu
+            return  # Pokud nejsou žádná aktivní data, nic se nezapisuje
 
-        # Pokud soubor neexistuje, vytvoříme ho s hlavičkou
-        file_exists = os.path.isfile(self.csv_file)
+        file_exists = os.path.isfile(self.csv_file)  # Kontrola, zda soubor již existuje
 
-        # Načteme existující hodnoty z CSV souboru
-        current_values = self.read_csv()
+        current_values = self.read_csv()  # Načte stávající hodnoty z CSV
 
-        # Otevřeme CSV pro zápis
         with open(self.csv_file, mode='w', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
 
-            # Pokud soubor ještě neexistuje, přidáme hlavičku
             if not file_exists:
-                writer.writerow(["Aplikace", "Čas (s)"])  # Hlavička CSV
+                writer.writerow(["Aplikace", "Čas (s)"])  # Zapisuje hlavičku pouze při prvním vytvoření souboru
 
-            # Uložení všech aktivních dat do CSV
             for window, duration in active_data:
-                updated_duration = current_values.get(window, 0.0) + duration  # Sečteme s existujícími hodnotami
-                updated_duration = round(updated_duration)  # Zaokrouhlíme na celé číslo
+                updated_duration = current_values.get(window, 0.0) + duration  # Přičte k existujícím hodnotám
+                updated_duration = round(updated_duration)  # Zaokrouhlí na celé číslo
+                writer.writerow([window, updated_duration])  # Zapíše řádek do CSV
 
-                writer.writerow([window, updated_duration])
-
-        print(f"Data zapsána do {self.csv_file}")
-    
+        print(f"Data zapsána do {self.csv_file}")  # Vypíše potvrzení o zápisu
     
     
     def read_csv(self):
-        # Načtení aktuálních hodnot z CSV
         if not os.path.isfile(self.csv_file):
-            return {}
+            return {}  # Pokud soubor neexistuje, vrací prázdný slovník
 
         current_data = {}
         with open(self.csv_file, mode='r', newline='', encoding='utf-8') as file:
             reader = csv.reader(file)
-            next(reader, None)  # Přeskočení hlavičky
+            next(reader, None)  # Přeskočí hlavičku
             for row in reader:
                 if len(row) == 2:
-                    current_data[row[0]] = float(row[1])
-        return current_data    
+                    current_data[row[0]] = float(row[1])  # Uloží data do slovníku
+        return current_data  # Vrací načtená data
     
     def on_window_changed(self, window_name):
         # Tato metoda se spustí při změně aktivního okna

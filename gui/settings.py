@@ -55,7 +55,8 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.csv_path_label)
         layout.addWidget(self.csv_path_edit)
         layout.addWidget(self.csv_browse_button)
-
+        
+        
         # Uložit a Zrušit
         self.save_button = QPushButton("Uložit")
         self.save_button.clicked.connect(self.accept)
@@ -76,6 +77,12 @@ class SettingsDialog(QDialog):
             self.csv_path_edit.setText(path)
 
     def get_settings(self):
+        # Validace, aby uživatel nemohl nastavit prázdnou cestu
+        if not self.screenshot_path_edit.text():
+            self.screenshot_path_edit.setText("/tmp/screenshots")
+        if not self.csv_path_edit.text():
+            self.csv_path_edit.setText("/tmp/csv_logs")
+
         return {
             "tracking_interval": self.tracking_spinbox.value(),
             "screenshot_interval": self.screenshot_spinbox.value(),
@@ -83,3 +90,4 @@ class SettingsDialog(QDialog):
             "screenshot_path": self.screenshot_path_edit.text(),
             "csv_path": self.csv_path_edit.text()
         }
+

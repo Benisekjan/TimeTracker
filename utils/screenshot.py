@@ -1,29 +1,35 @@
-import pyscreenshot as ImageGrab
 import os
-from datetime import datetime
+from PyQt5.QtCore import QDateTime
+import pyautogui
+class ScreenshotManager:
+    def __init__(self):
+        # Výchozí cesta pro screenshoty
+        self.screenshot_directory = "/tmp/screenshot"
+        self.ensure_directory_exists(self.screenshot_directory)
 
-class ScreenshotTaker:
-    def __init__(self, default_directory="/tmp/"):
-        self.default_directory = default_directory
+    def ensure_directory_exists(self, directory):
+        # Vytvoří složku, pokud neexistuje
+        os.makedirs(directory, exist_ok=True)
 
-        # Pokud složka neexistuje, vytvoříme ji
-        if not os.path.exists(self.default_directory):
-            os.makedirs(self.default_directory)
+    def set_screenshot_directory(self, new_directory):
+        # Změní výchozí složku pro ukládání screenshotů
+        self.screenshot_directory = new_directory
+        self.ensure_directory_exists(self.screenshot_directory)
 
-    def take_screenshot(self, directory_path=None):
-        # Použití zadané složky, jinak výchozí
-        directory = directory_path or self.default_directory
+    def take_screenshot(self):
+        try:
+            os.makedirs(self.screenshot_directory, exist_ok=True)  # Zajistí vytvoření složky, pokud neexistuje
 
-        # Zajištění, že složka existuje
-        if not os.path.exists(directory):
-            os.makedirs(directory)
+            timestamp = QDateTime.currentDateTime().toString("yyyy.MM.dd-HH-mm-ss")  # Získání časového razítka
+            filename = f"screenshot-{timestamp}.png"
+            file_path = os.path.join(self.screenshot_directory, filename)  # Spojení cesty a názvu souboru
 
-        # Vytvoření názvu souboru na základě aktuálního času
-        timestamp = datetime.now().strftime("%Y.%m.%d-%H-%M-%S")
-        file_path = os.path.join(directory, f"{timestamp}.png")
+            # Pořízení snímku obrazovky pomocí pyautogui
+            screenshot = pyautogui.screenshot()
+            screenshot.save(file_path)  # Uloží screenshot na specifikované místo
 
-        # Pořízení screenshotu a jeho uložení
-        screenshot = ImageGrab.grab()
-        screenshot.save(file_path)
+            print(f"Screenshot uložen do: {file_path}")
 
-        return file_path  # Vrátí cestu k souboru pro další použití
+        except Exception as e:
+            print(f"Chyba při pořizování screenshotu: {e}")
+
