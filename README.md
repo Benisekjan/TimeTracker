@@ -36,3 +36,5 @@ python -m venv .env
 pip install requirements.txt 
 
 python main.py
+
+Pro build aplikace : pyinstaller --windowed --name "TimeTracker" --icon=icons/icon.icns --add-data "icons:icons" main.py 
