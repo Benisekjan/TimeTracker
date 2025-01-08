@@ -5,3 +5,4 @@
 dist
 build
 TimeTracker.spec
+__pycache__
