@@ -1,12 +1,12 @@
-VERZE PRO MACOS
+###VERZE PRO MACOS
 
-Time Tracker
+#Time Tracker
 
-Autor: Jan Beníšek
+###Autor: Jan Beníšek
 
-Třída: IT4
+###Třída: IT4
 
-Ročník: 2024/2025
+###Ročník: 2024/2025
 
 
 Tato aplikace, nazvaná TimeTracker, slouží k monitorování a sledování aktivity uživatelských oken na počítači. 
