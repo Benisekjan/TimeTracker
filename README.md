@@ -61,7 +61,7 @@
 
 ## Použité zdroje
 
-- **[OpenAI ChatGPT](https://chatgpt.com/)**: Oficiální dokumentace k ChatGPT, obsahuje informace o funkcích a použití.
+- **[OpenAI ChatGPT](https://chatgpt.com/)**: ChatGPT je jazykový model vyvinutý firmou OpenAI, který je schopen generovat texty na základě zadaných vstupů.
 - **[Qt for Python Documentation](https://doc.qt.io/qtforpython-6/)**: Dokumentace k Qt for Python, zahrnuje informace o instalaci a použití.
 - **[psutil Documentation](https://psutil.readthedocs.io/en/latest/#)**: Dokumentace k psutil, nástroj pro správu systémových prostředků.
 - **[PyAutoGUI Documentation](https://pyautogui.readthedocs.io/en/latest/screenshot.html#)**: Dokumentace k PyAutoGUI, modul pro pořizování snímků obrazovky v Pythonu.
